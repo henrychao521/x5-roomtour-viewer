@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>教室 — 第一人稱行走（碰撞版）</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:system-ui}
+  #c{width:100%;height:100%;display:block}
+  #hud{position:fixed;left:12px;bottom:12px;color:#eee;background:rgba(0,0,0,.55);
+       padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;pointer-events:none}
+  #start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+         background:rgba(0,0,0,.7);color:#fff;cursor:pointer;flex-direction:column;gap:8px}
+  #start h2{margin:0}
+  #loading{position:fixed;top:12px;right:12px;color:#aaa;font-size:13px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading">載入中…</div>
+<div id="hud">🖱 滑鼠視角｜WASD 行走｜碰撞：牆/桌擋路｜Esc 釋放滑鼠</div>
+<div id="start"><h2>點擊進入教室</h2><div>真實 3D 高斯場景 + 物理碰撞（牆與家具會擋住你）</div></div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+
+// 場景為 COLMAP y-down 慣例：splat 實體繞 Z 轉 180° 後，世界座標 = (-x, -y, z)
+// 原始座標地板 y=+0.945 → 世界 -0.945；相機拍攝高度 ≈ 地板上 1.0（持桿）
+const FLOOR_Y = -0.945, EYE = 1.0, RADIUS = 0.22, SPAWN = [-0.22, 0.04];
+
+const canvas = document.getElementById('c');
+const app = new pc.Application(canvas, {
+  mouse: new pc.Mouse(canvas), keyboard: new pc.Keyboard(window),
+  graphicsDeviceOptions: { antialias: false }
+});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize', () => app.resizeCanvas());
+app.start();
+
+const cam = new pc.Entity('cam');
+cam.addComponent('camera', { clearColor: new pc.Color(0.06,0.06,0.07), fov: 75, nearClip: 0.05, farClip: 100 });
+cam.setPosition(SPAWN[0], FLOOR_Y + EYE, SPAWN[1]);
+app.root.addChild(cam);
+
+// ---- 佔據格碰撞（由高斯密度離線抽出）----
+let occ = null, gridO = null, vox = 0.15, dims = null;
+fetch('assets/walk_occupancy.json').then(r => r.json()).then(j => {
+  occ = j.occupied_topdown; gridO = j.grid_origin; vox = j.voxel; dims = j.grid_dims;
+});
+function blocked(x, z) {
+  if (!occ) return false;
+  for (const [dx, dz] of [[0,0],[RADIUS,0],[-RADIUS,0],[0,RADIUS],[0,-RADIUS]]) {
+    // 世界→PLY 原始座標（實體繞 Z 轉 180°：x 取負、z 不變）
+    const ox = -(x + dx), oz = z + dz;
+    const ix = Math.floor((ox - gridO[0]) / vox);
+    const iz = Math.floor((oz - gridO[2]) / vox);
+    if (ix < 0 || iz < 0 || ix >= occ.length || iz >= occ[0].length) return true; // 出界=牆
+    if (occ[ix][iz]) return true;
+  }
+  return false;
+}
+
+// ---- 高斯場景 ----
+const asset = new pc.Asset('classroom', 'gsplat', { url: 'assets/walk.compressed.ply' });
+asset.on('load', () => {
+  const e = new pc.Entity('splat');
+  e.addComponent('gsplat', { asset });
+  e.setEulerAngles(0, 0, 180);   // 3DGS/COLMAP y-down → y-up
+  app.root.addChild(e);
+  document.getElementById('loading').textContent = '';
+});
+asset.on('error', err => document.getElementById('loading').textContent = '載入失敗：' + err);
+app.assets.add(asset); app.assets.load(asset);
+
+// ---- 第一人稱控制 ----
+let yaw = 0, pitch = 0, locked = false;
+const start = document.getElementById('start');
+start.addEventListener('click', () => { canvas.requestPointerLock(); start.style.display = 'none'; });
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  if (!locked) start.style.display = 'flex';
+});
+document.addEventListener('mousemove', ev => {
+  if (!locked) return;
+  yaw   -= ev.movementX * 0.12;
+  pitch -= ev.movementY * 0.12;
+  pitch = Math.max(-85, Math.min(85, pitch));
+});
+// 手機：拖曳看視角（無行走）
+let lastT = null;
+canvas.addEventListener('touchstart', e => { lastT = e.touches[0]; start.style.display='none'; });
+canvas.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  if (lastT) { yaw -= (t.clientX-lastT.clientX)*0.25; pitch = Math.max(-85, Math.min(85, pitch - (t.clientY-lastT.clientY)*0.25)); }
+  lastT = t; e.preventDefault();
+}, { passive:false });
+
+window.DEBUG = { cam, blocked: (x, z) => blocked(x, z), pos: () => cam.getPosition().toString() };
+const SPEED = 1.6; // 單位/秒（場景尺度 1≈1.1m → 接近步行速度）
+app.on('update', dt => {
+  cam.setEulerAngles(pitch, yaw, 0);
+  const kb = app.keyboard;
+  let fx = 0, fz = 0;
+  if (kb.isPressed(pc.KEY_W) || kb.isPressed(pc.KEY_UP))    fz += 1;
+  if (kb.isPressed(pc.KEY_S) || kb.isPressed(pc.KEY_DOWN))  fz -= 1;
+  if (kb.isPressed(pc.KEY_A) || kb.isPressed(pc.KEY_LEFT))  fx -= 1;
+  if (kb.isPressed(pc.KEY_D) || kb.isPressed(pc.KEY_RIGHT)) fx += 1;
+  if (!fx && !fz) return;
+  const fwd = cam.forward, right = cam.right;
+  let mx = (fwd.x * fz + right.x * fx), mz = (fwd.z * fz + right.z * fx);
+  const len = Math.hypot(mx, mz) || 1;
+  mx = mx / len * SPEED * dt; mz = mz / len * SPEED * dt;
+  const p = cam.getPosition();
+  // 軸向滑動碰撞：整步→X 分量→Z 分量
+  if      (!blocked(p.x + mx, p.z + mz)) cam.setPosition(p.x + mx, FLOOR_Y + EYE, p.z + mz);
+  else if (!blocked(p.x + mx, p.z))      cam.setPosition(p.x + mx, FLOOR_Y + EYE, p.z);
+  else if (!blocked(p.x, p.z + mz))      cam.setPosition(p.x, FLOOR_Y + EYE, p.z + mz);
+});
+</script>
+</body>
+</html>
