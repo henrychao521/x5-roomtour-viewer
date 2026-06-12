@@ -2,35 +2,50 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>教室 — 第一人稱行走（碰撞版）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>教室 — 第一人稱行走（碰撞版 v2）</title>
 <style>
-  html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:system-ui}
+  html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:system-ui;touch-action:none}
   #c{width:100%;height:100%;display:block}
   #hud{position:fixed;left:12px;bottom:12px;color:#eee;background:rgba(0,0,0,.55);
        padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;pointer-events:none}
   #start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-         background:rgba(0,0,0,.7);color:#fff;cursor:pointer;flex-direction:column;gap:8px}
+         background:rgba(0,0,0,.75);color:#fff;cursor:pointer;flex-direction:column;gap:10px;z-index:10}
   #start h2{margin:0}
-  #loading{position:fixed;top:12px;right:12px;color:#aaa;font-size:13px}
+  #bar{width:min(420px,70vw);height:8px;background:#333;border-radius:4px;overflow:hidden}
+  #fill{height:100%;width:0%;background:#e8842c;transition:width .15s}
+  #pct{font-size:13px;color:#bbb}
+  #xr{position:fixed;right:12px;bottom:12px;display:none;background:#0a6;color:#fff;border:0;
+      padding:10px 16px;border-radius:8px;font-size:14px;cursor:pointer;z-index:5}
+  .stick{position:fixed;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08);
+         border:2px solid rgba(255,255,255,.25);display:none;z-index:6}
+  .knob{position:absolute;left:50%;top:50%;width:48px;height:48px;border-radius:50%;
+        background:rgba(255,255,255,.35);transform:translate(-50%,-50%)}
+  @media (pointer:coarse){ #hud{display:none} }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="loading">載入中…</div>
-<div id="hud">🖱 滑鼠視角｜WASD 行走｜碰撞：牆/桌擋路｜Esc 釋放滑鼠</div>
-<div id="start"><h2>點擊進入教室</h2><div>真實 3D 高斯場景 + 物理碰撞（牆與家具會擋住你）</div></div>
+<div id="hud">🖱 滑鼠視角｜WASD 行走｜Shift 快走｜雙層碰撞：桌擋身、高開口可過｜Esc 釋放</div>
+<button id="xr">進入 VR</button>
+<div id="stickL" class="stick"><div class="knob" id="knobL"></div></div>
+<div id="start">
+  <h2>教室 RoomTour</h2>
+  <div id="pct">準備下載場景…</div>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="enterTip" style="display:none">點擊進入（電腦：滑鼠+WASD；手機：左搖桿走、右半屏拖視角）</div>
+</div>
 <script type="module">
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 
-// 場景為 COLMAP y-down 慣例：splat 實體繞 Z 轉 180° 後，世界座標 = (-x, -y, z)
-// 原始座標地板 y=+0.945 → 世界 -0.945；相機拍攝高度 ≈ 地板上 1.0（持桿）
+// 場景為 COLMAP y-down：splat 繞 Z 轉 180° 後，世界 = (-x, -y, z)
 const FLOOR_Y = -0.945, EYE = 1.0, RADIUS = 0.22, SPAWN = [-0.22, 0.04];
+const SPEED = 1.6, SPRINT = 2.8;
 
 const canvas = document.getElementById('c');
 const app = new pc.Application(canvas, {
   mouse: new pc.Mouse(canvas), keyboard: new pc.Keyboard(window),
-  graphicsDeviceOptions: { antialias: false }
+  graphicsDeviceOptions: { antialias: false, xrCompatible: true }
 });
 app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
 app.setCanvasResolution(pc.RESOLUTION_AUTO);
@@ -42,79 +57,147 @@ cam.addComponent('camera', { clearColor: new pc.Color(0.06,0.06,0.07), fov: 75, 
 cam.setPosition(SPAWN[0], FLOOR_Y + EYE, SPAWN[1]);
 app.root.addChild(cam);
 
-// ---- 佔據格碰撞（由高斯密度離線抽出）----
-let occ = null, gridO = null, vox = 0.15, dims = null;
-fetch('assets/walk_occupancy.json').then(r => r.json()).then(j => {
-  occ = j.occupied_topdown; gridO = j.grid_origin; vox = j.voxel; dims = j.grid_dims;
+// ---- 佔據格（雙層：腿/頭）----
+let legs=null, head=null, gridO=null, vox=0.15;
+fetch('assets/walk_occupancy.json').then(r=>r.json()).then(j=>{
+  legs=j.occupied_legs||j.occupied_topdown; head=j.occupied_head||j.occupied_topdown;
+  gridO=j.grid_origin; vox=j.voxel;
 });
-function blocked(x, z) {
-  if (!occ) return false;
-  for (const [dx, dz] of [[0,0],[RADIUS,0],[-RADIUS,0],[0,RADIUS],[0,-RADIUS]]) {
-    // 世界→PLY 原始座標（實體繞 Z 轉 180°：x 取負、z 不變）
-    const ox = -(x + dx), oz = z + dz;
-    const ix = Math.floor((ox - gridO[0]) / vox);
-    const iz = Math.floor((oz - gridO[2]) / vox);
-    if (ix < 0 || iz < 0 || ix >= occ.length || iz >= occ[0].length) return true; // 出界=牆
-    if (occ[ix][iz]) return true;
+function cellHit(g,ox,oz){
+  const ix=Math.floor((ox-gridO[0])/vox), iz=Math.floor((oz-gridO[2])/vox);
+  if(ix<0||iz<0||ix>=g.length||iz>=g[0].length) return true;
+  return !!g[ix][iz];
+}
+function blocked(x,z){
+  if(!legs) return false;
+  for(const [dx,dz] of [[0,0],[RADIUS,0],[-RADIUS,0],[0,RADIUS],[0,-RADIUS]]){
+    const ox=-(x+dx), oz=z+dz;            // 世界→PLY 原始座標
+    if(cellHit(legs,ox,oz)||cellHit(head,ox,oz)) return true;
   }
   return false;
 }
 
-// ---- 高斯場景 ----
-const asset = new pc.Asset('classroom', 'gsplat', { url: 'assets/walk.compressed.ply' });
-asset.on('load', () => {
-  const e = new pc.Entity('splat');
-  e.addComponent('gsplat', { asset });
-  e.setEulerAngles(0, 0, 180);   // 3DGS/COLMAP y-down → y-up
-  app.root.addChild(e);
-  document.getElementById('loading').textContent = '';
-});
-asset.on('error', err => document.getElementById('loading').textContent = '載入失敗：' + err);
-app.assets.add(asset); app.assets.load(asset);
+// ---- 場景串流下載（真實進度條）→ blob → gsplat ----
+const fill=document.getElementById('fill'), pct=document.getElementById('pct');
+const tip=document.getElementById('enterTip');
+async function loadScene(){
+  const res = await fetch('assets/walk.compressed.ply');
+  const total = +res.headers.get('Content-Length')||24011404;
+  const reader = res.body.getReader(); const chunks=[]; let got=0;
+  while(true){
+    const {done,value}=await reader.read(); if(done) break;
+    chunks.push(value); got+=value.length;
+    const p=Math.min(100,Math.round(got/total*100));
+    fill.style.width=p+'%'; pct.textContent=`下載場景 ${p}%（${(got/1048576).toFixed(1)} MB）`;
+  }
+  const blob=new Blob(chunks); const url=URL.createObjectURL(blob);
+  pct.textContent='解碼中…';
+  const asset=new pc.Asset('classroom','gsplat',{url, filename:'walk.compressed.ply'});
+  asset.on('load',()=>{
+    const e=new pc.Entity('splat');
+    e.addComponent('gsplat',{asset});
+    e.setEulerAngles(0,0,180);            // y-down → y-up
+    app.root.addChild(e);
+    pct.textContent='完成'; tip.style.display='block';
+    if(navigator.userAgent.match(/Mobi|Android|iPhone|iPad/)) document.getElementById('stickL').style.display='block';
+  });
+  asset.on('error',err=>pct.textContent='載入失敗：'+err);
+  app.assets.add(asset); app.assets.load(asset);
+}
+loadScene();
 
-// ---- 第一人稱控制 ----
-let yaw = 0, pitch = 0, locked = false;
-const start = document.getElementById('start');
-start.addEventListener('click', () => { canvas.requestPointerLock(); start.style.display = 'none'; });
-document.addEventListener('pointerlockchange', () => {
-  locked = document.pointerLockElement === canvas;
-  if (!locked) start.style.display = 'flex';
+// ---- 視角 ----
+let yaw=0,pitch=0,locked=false;
+const start=document.getElementById('start');
+start.addEventListener('click',()=>{
+  if(tip.style.display==='none') return;   // 還沒載完
+  start.style.display='none';
+  if(matchMedia('(pointer:fine)').matches) canvas.requestPointerLock();
 });
-document.addEventListener('mousemove', ev => {
-  if (!locked) return;
-  yaw   -= ev.movementX * 0.12;
-  pitch -= ev.movementY * 0.12;
-  pitch = Math.max(-85, Math.min(85, pitch));
+document.addEventListener('pointerlockchange',()=>{
+  locked=document.pointerLockElement===canvas;
+  if(!locked && tip.style.display!=='none') start.style.display='flex';
 });
-// 手機：拖曳看視角（無行走）
-let lastT = null;
-canvas.addEventListener('touchstart', e => { lastT = e.touches[0]; start.style.display='none'; });
-canvas.addEventListener('touchmove', e => {
-  const t = e.touches[0];
-  if (lastT) { yaw -= (t.clientX-lastT.clientX)*0.25; pitch = Math.max(-85, Math.min(85, pitch - (t.clientY-lastT.clientY)*0.25)); }
-  lastT = t; e.preventDefault();
-}, { passive:false });
+document.addEventListener('mousemove',ev=>{
+  if(!locked) return;
+  yaw-=ev.movementX*0.12; pitch=Math.max(-85,Math.min(85,pitch-ev.movementY*0.12));
+});
 
-window.DEBUG = { cam, blocked: (x, z) => blocked(x, z), pos: () => cam.getPosition().toString() };
-const SPEED = 1.6; // 單位/秒（場景尺度 1≈1.1m → 接近步行速度）
-app.on('update', dt => {
-  cam.setEulerAngles(pitch, yaw, 0);
-  const kb = app.keyboard;
-  let fx = 0, fz = 0;
-  if (kb.isPressed(pc.KEY_W) || kb.isPressed(pc.KEY_UP))    fz += 1;
-  if (kb.isPressed(pc.KEY_S) || kb.isPressed(pc.KEY_DOWN))  fz -= 1;
-  if (kb.isPressed(pc.KEY_A) || kb.isPressed(pc.KEY_LEFT))  fx -= 1;
-  if (kb.isPressed(pc.KEY_D) || kb.isPressed(pc.KEY_RIGHT)) fx += 1;
-  if (!fx && !fz) return;
-  const fwd = cam.forward, right = cam.right;
-  let mx = (fwd.x * fz + right.x * fx), mz = (fwd.z * fz + right.z * fx);
-  const len = Math.hypot(mx, mz) || 1;
-  mx = mx / len * SPEED * dt; mz = mz / len * SPEED * dt;
-  const p = cam.getPosition();
-  // 軸向滑動碰撞：整步→X 分量→Z 分量
-  if      (!blocked(p.x + mx, p.z + mz)) cam.setPosition(p.x + mx, FLOOR_Y + EYE, p.z + mz);
-  else if (!blocked(p.x + mx, p.z))      cam.setPosition(p.x + mx, FLOOR_Y + EYE, p.z);
-  else if (!blocked(p.x, p.z + mz))      cam.setPosition(p.x, FLOOR_Y + EYE, p.z + mz);
+// ---- 手機：左搖桿走、右半屏拖視角 ----
+const stickEl=document.getElementById('stickL'), knob=document.getElementById('knobL');
+let stickVec=[0,0], stickId=null, lookId=null, lastLook=null;
+function placeStick(x,y){ stickEl.style.left=(x-55)+'px'; stickEl.style.top=(y-55)+'px'; }
+canvas.addEventListener('touchstart',e=>{
+  for(const t of e.changedTouches){
+    if(t.clientX<innerWidth/2 && stickId===null){
+      stickId=t.identifier; placeStick(t.clientX,t.clientY); stickEl.style.display='block';
+    } else if(lookId===null){ lookId=t.identifier; lastLook=[t.clientX,t.clientY]; }
+  }
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId){
+      const r=stickEl.getBoundingClientRect();
+      let dx=t.clientX-(r.left+55), dy=t.clientY-(r.top+55);
+      const len=Math.hypot(dx,dy), max=42;
+      if(len>max){dx*=max/len;dy*=max/len;}
+      knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+      stickVec=[dx/max,dy/max];
+    } else if(t.identifier===lookId && lastLook){
+      yaw-=(t.clientX-lastLook[0])*0.3;
+      pitch=Math.max(-85,Math.min(85,pitch-(t.clientY-lastLook[1])*0.3));
+      lastLook=[t.clientX,t.clientY];
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId){stickId=null;stickVec=[0,0];knob.style.transform='translate(-50%,-50%)';}
+    if(t.identifier===lookId){lookId=null;lastLook=null;}
+  }
+});
+
+// ---- WebXR（有頭顯才顯示按鈕）----
+const xrBtn=document.getElementById('xr');
+if(app.xr?.supported){
+  app.xr.isAvailable(pc.XRTYPE_VR).then?.(ok=>{ if(ok) xrBtn.style.display='block'; });
+  if(app.xr.isAvailable && app.xr.isAvailable(pc.XRTYPE_VR)===true) xrBtn.style.display='block';
+  xrBtn.onclick=()=>cam.camera.startXr(pc.XRTYPE_VR, pc.XRSPACE_LOCALFLOOR);
+}
+
+// ---- 移動：慣性 + head bob + 雙層碰撞 ----
+let vel=[0,0], bobT=0;
+window.DEBUG={cam, blocked:(x,z)=>blocked(x,z), pos:()=>cam.getPosition().toString()};
+app.on('update',dt=>{
+  cam.setEulerAngles(pitch,yaw,0);
+  const kb=app.keyboard;
+  let fx=stickVec[0], fz=-stickVec[1];
+  if(kb.isPressed(pc.KEY_W)||kb.isPressed(pc.KEY_UP))fz+=1;
+  if(kb.isPressed(pc.KEY_S)||kb.isPressed(pc.KEY_DOWN))fz-=1;
+  if(kb.isPressed(pc.KEY_A)||kb.isPressed(pc.KEY_LEFT))fx-=1;
+  if(kb.isPressed(pc.KEY_D)||kb.isPressed(pc.KEY_RIGHT))fx+=1;
+  const sp=kb.isPressed(pc.KEY_SHIFT)?SPRINT:SPEED;
+  const fwd=cam.forward,right=cam.right;
+  let tx=fwd.x*fz+right.x*fx, tz=fwd.z*fz+right.z*fx;
+  const tl=Math.hypot(tx,tz);
+  if(tl>0){tx=tx/tl*sp;tz=tz/tl*sp;}
+  // 慣性（加速 8/s、減速 10/s）
+  const k=(tl>0?8:10)*dt;
+  vel[0]+=(tx-vel[0])*Math.min(1,k); vel[1]+=(tz-vel[1])*Math.min(1,k);
+  const mx=vel[0]*dt, mz=vel[1]*dt;
+  if(Math.abs(mx)+Math.abs(mz)<1e-6) return;
+  const p=cam.getPosition();
+  let nx=p.x, nz=p.z;
+  if(!blocked(p.x+mx,p.z+mz)){nx=p.x+mx;nz=p.z+mz;}
+  else if(!blocked(p.x+mx,p.z)){nx=p.x+mx;vel[1]=0;}
+  else if(!blocked(p.x,p.z+mz)){nz=p.z+mz;vel[0]=0;}
+  else {vel=[0,0];}
+  // head bob：速度比例的細微上下擺
+  const moving=Math.hypot(vel[0],vel[1]);
+  bobT+=dt*(moving>0.1?moving*5.5:0);
+  const bob=moving>0.1?Math.sin(bobT)*0.018:0;
+  cam.setPosition(nx,FLOOR_Y+EYE+bob,nz);
 });
 </script>
 </body>
