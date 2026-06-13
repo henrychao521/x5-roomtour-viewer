@@ -32,11 +32,14 @@
 </div>
 <script type="module">
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
-let scene=null, K=0.86;
+let scene=null, K=0.86, arch=null;
 const tracks={};        // id -> [{t,x,z}]
 let mode='idle', ws=null, demoTimer=null;
 
-fetch('assets/tracking_scene.json').then(r=>r.json()).then(s=>{scene=s;K=s.k;resize();draw();});
+Promise.all([
+  fetch('assets/tracking_scene.json').then(r=>r.json()),
+  fetch('assets/arch_elements.json').then(r=>r.json()).catch(()=>null)
+]).then(([s,a])=>{scene=s;K=s.k;arch=a;resize();draw();});
 addEventListener('resize',()=>{resize();draw();});
 function resize(){ cv.width=cv.clientWidth*devicePixelRatio; cv.height=cv.clientHeight*devicePixelRatio; }
 
@@ -58,12 +61,13 @@ function draw(){
   ctx.strokeStyle='#1b222b';ctx.lineWidth=1;
   for(let gx=Math.ceil(r.x0);gx<=r.x1;gx++){const[a,b]=P(gx,r.z0),[c,d]=P(gx,r.z1);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
   for(let gz=Math.ceil(r.z0);gz<=r.z1;gz++){const[a,b]=P(r.x0,gz),[c,d]=P(r.x1,gz);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
-  // 家具足跡
-  ctx.fillStyle='rgba(202,164,114,0.30)';
-  for(const[fx,fz]of scene.furniture_m){const[a,b]=P(fx,fz);ctx.fillRect(a-1.5,b-1.5,3,3);}
-  // 牆
-  const[wx,wy]=P(r.x0,r.z0);ctx.strokeStyle='#8b949e';ctx.lineWidth=2*devicePixelRatio;
-  ctx.strokeRect(wx,wy,(r.x1-r.x0)*s,(r.z1-r.z0)*s);
+  if(arch){ drawArch(s,r); }
+  else {
+    ctx.fillStyle='rgba(202,164,114,0.30)';
+    for(const[fx,fz]of scene.furniture_m){const[a,b]=P(fx,fz);ctx.fillRect(a-1.5,b-1.5,3,3);}
+    const[wx,wy]=P(r.x0,r.z0);ctx.strokeStyle='#8b949e';ctx.lineWidth=2*devicePixelRatio;
+    ctx.strokeRect(wx,wy,(r.x1-r.x0)*s,(r.z1-r.z0)*s);
+  }
   // 原點 + 軸
   const[ox,oy]=P(0,0);
   ctx.strokeStyle='#444';ctx.setLineDash([4,4]);
@@ -91,6 +95,52 @@ function draw(){
   const total=Object.values(tracks).reduce((s,p)=>s+p.length,0);
   document.getElementById('stat').innerHTML=
     `模式：${mode}<br>目前人數：<b>${Object.keys(tracks).length}</b><br>累計軌跡點：<b>${total}</b><br>室內：${(r.x1-r.x0).toFixed(1)}×${(r.z1-r.z0).toFixed(1)} m`;
+}
+// 建築平面圖風格底圖
+function drawArch(s,r){
+  const dpr=devicePixelRatio, T=arch.wall_t;
+  // 牆體 poché（外框-內框灰填）
+  const[ox0,oy0]=P(r.x0-T,r.z0-T),[ox1,oy1]=P(r.x1+T,r.z1+T);
+  const[ix0,iy0]=P(r.x0,r.z0),[ix1,iy1]=P(r.x1,r.z1);
+  ctx.fillStyle='#3a3a3a';
+  ctx.beginPath();ctx.rect(ox0,oy0,ox1-ox0,oy1-oy0);ctx.rect(ix0,iy0,ix1-ix0,iy1-iy0);
+  ctx.fill('evenodd');
+  // 窗（藍三線，挖白）
+  const drawWin=(wallx,segs)=>segs.forEach(([a,b])=>{
+    if(b-a<0.7)return; const[wa]=P(wallx-T,a),[,ya]=P(wallx-T,a),[,yb]=P(wallx-T,b);
+    const[wc]=P(wallx+T,a);
+    ctx.fillStyle='#0d1117';ctx.fillRect(Math.min(wa,wc),ya,Math.abs(wc-wa),yb-ya);
+    ctx.strokeStyle='#1f9fff';ctx.lineWidth=1.3*dpr;
+    [-T*0.5,0,T*0.5].forEach(o=>{const[xx]=P(wallx+o,a);ctx.beginPath();ctx.moveTo(xx,ya);ctx.lineTo(xx,yb);ctx.stroke();});
+  });
+  drawWin(r.x0,arch.windows.left); drawWin(r.x1,arch.windows.right);
+  // 門（弧+門板，挖白）
+  const d=arch.door;const[dxa,dya]=P(d.x-T,d.z),[dxb]=P(d.x+T,d.z),[,dyb]=P(d.x,d.z+d.w);
+  ctx.fillStyle='#0d1117';ctx.fillRect(Math.min(dxa,dxb),dya,Math.abs(dxb-dxa),dyb-dya);
+  const[dpx,dpy]=P(d.x,d.z);ctx.strokeStyle='#b5651d';ctx.lineWidth=2*dpr;
+  ctx.beginPath();ctx.moveTo(dpx,dpy);ctx.lineTo(dpx,P(d.x,d.z+d.w)[1]);ctx.stroke();
+  ctx.beginPath();ctx.arc(dpx,dpy,d.w*s,0,Math.PI/2.3);ctx.stroke();
+  // 黑板（綠）
+  const bb=arch.blackboard;const[bx0,by]=P(bb.x0,bb.z),[bx1]=P(bb.x1,bb.z);
+  ctx.strokeStyle='#1d6b3a';ctx.lineWidth=4*dpr;ctx.beginPath();ctx.moveTo(bx0,by);ctx.lineTo(bx1,by);ctx.stroke();
+  ctx.fillStyle='#1d6b3a';ctx.font=`bold ${11*dpr}px system-ui`;ctx.fillText('黑板',(bx0+bx1)/2-14*dpr,by+16*dpr);
+  // 燈具（橘虛線方框）
+  ctx.strokeStyle='#e8a317';ctx.lineWidth=1*dpr;ctx.setLineDash([4*dpr,2*dpr]);
+  arch.lights.forEach(l=>{const th=l.ang*Math.PI/180,hl=l.len/2,w=0.09;
+    const ux=Math.cos(th),uy=Math.sin(th);const[cx,cy]=P(l.x,l.z);
+    const dx=ux*hl*s,dy=uy*hl*s,px=-uy*w*s,py=ux*w*s;
+    ctx.beginPath();ctx.moveTo(cx-dx-px,cy-dy-py);ctx.lineTo(cx+dx-px,cy+dy-py);
+    ctx.lineTo(cx+dx+px,cy+dy+py);ctx.lineTo(cx-dx+px,cy-dy+py);ctx.closePath();ctx.stroke();});
+  ctx.setLineDash([]);
+  // 家具（米色方框+標注）
+  arch.furniture.forEach(o=>{
+    ctx.fillStyle='rgba(217,201,168,0.85)';ctx.strokeStyle='#7a5230';ctx.lineWidth=1.2*dpr;
+    ctx.beginPath();o.box.forEach((p,i)=>{const[a,b]=P(p[0],p[1]);i?ctx.lineTo(a,b):ctx.moveTo(a,b);});
+    ctx.closePath();ctx.fill();ctx.stroke();
+    const[cx,cy]=P(o.cx,o.cz);ctx.fillStyle='#4a3210';ctx.font=`${8*dpr}px system-ui`;ctx.textAlign='center';
+    ctx.fillText(o.label,cx,cy-2*dpr);ctx.fillText(`${Math.max(o.w,o.d).toFixed(1)}×${Math.min(o.w,o.d).toFixed(1)}`,cx,cy+9*dpr);
+    ctx.textAlign='left';
+  });
 }
 function addPoint(id,x,z,t){ (tracks[id]=tracks[id]||[]).push({t,x,z}); if(tracks[id].length>600)tracks[id].shift(); }
 
