@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>教室數位孿生 — 示範動畫</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1117;overflow:hidden;font-family:system-ui}
+  #c{width:100%;height:100%;display:block}
+  #cap{position:fixed;left:0;right:0;bottom:24px;text-align:center;color:#fff;
+       font-size:20px;font-weight:600;text-shadow:0 2px 8px #000;letter-spacing:1px}
+  #sub{position:fixed;left:0;right:0;bottom:60px;text-align:center;color:#9fd;
+       font-size:13px;text-shadow:0 1px 4px #000}
+  #pick{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:5}
+  #pick button{background:#1f6feb;color:#fff;border:0;padding:8px 12px;border-radius:7px;cursor:pointer;font-size:13px}
+  #pick button.on{background:#0a6}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="pick"></div>
+<div id="sub"></div>
+<div id="cap">載入中…</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+
+const FLOOR_Y=-0.945, EYE=1.0;
+const canvas=document.getElementById('c');
+const app=new pc.Application(canvas,{ graphicsDeviceOptions:{ preserveDrawingBuffer:true, antialias:true } });
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize',()=>app.resizeCanvas()); app.start();
+app.autoRender=false;   // 確定性擷取：只在我們要求時 render
+
+const cam=new pc.Entity(); cam.addComponent('camera',{clearColor:new pc.Color(0.05,0.06,0.08),fov:70,farClip:100});
+app.root.addChild(cam);
+
+// 化身
+function mkAvatar(rgb){
+  const e=new pc.Entity(); e.addComponent('render',{type:'capsule'}); e.setLocalScale(0.34,0.8,0.34);
+  const m=new pc.StandardMaterial(); m.diffuse=new pc.Color(...rgb); m.emissive=new pc.Color(rgb[0]*0.3,rgb[1]*0.3,rgb[2]*0.3); m.update();
+  e.render.material=m; app.root.addChild(e); return e;
+}
+const A=[mkAvatar([0.9,0.25,0.2]), mkAvatar([0.2,0.5,0.95])];
+A.forEach(a=>a.enabled=false);
+const W=(x,z,y=FLOOR_Y+0.8)=>new pc.Vec3(-x,y,z);   // PLY(x,z) → 世界
+
+// 三組軌跡
+let realpath=[];
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
+function sampleArr(arr,t){ const f=t*(arr.length-1); const i=Math.floor(f); return lerp(arr[Math.min(i,arr.length-1)], arr[Math.min(i+1,arr.length-1)], f-i); }
+function loopPath(t,cx,cz,rx,rz,phase=0){ const a=t*Math.PI*2+phase; return [cx+Math.cos(a)*rx, cz+Math.sin(a)*rz]; }
+
+const CLIPS={
+  realpath:{ label:'真實拍攝路徑',
+    sub:'化身重走你拍 767 時的行走軌跡（COLMAP 相機中心，116 點真實資料）',
+    people:t=>[sampleArr(realpath, t)] },
+  patrol:{ label:'單人巡場',
+    sub:'示範：一人沿教室繞行一圈（合成軌跡）',
+    people:t=>[loopPath(t,-0.3,0,2.6,3.2)] },
+  meet:{ label:'兩人交會',
+    sub:'示範：兩人反向繞行、中途交會（多人化身能力）',
+    people:t=>[loopPath(t,-0.3,0,2.4,3.0,0), loopPath(t,-0.3,0,2.4,3.0,Math.PI)] },
+};
+let clip='realpath';
+
+// 第三人稱跟拍：鏡頭在化身斜後上方、看向化身（接近水平→避開天花板霧）
+let camMode='chase';   // 'chase' | 'orbit'
+function setCam(t, focus, heading){
+  if(camMode==='orbit'){
+    const ang=t*Math.PI*0.7-0.35, r=5.0, h=FLOOR_Y+4.2;
+    cam.setPosition(Math.sin(ang)*r, h, Math.cos(ang)*r+0.5);
+    cam.lookAt(focus.x, FLOOR_Y+0.6, focus.z); return;
+  }
+  // chase：在 heading 反方向 2.8、抬高 1.0
+  const back=2.8, up=1.1, ahead=1.2;
+  cam.setPosition(focus.x - heading.x*back, FLOOR_Y+EYE+up, focus.z - heading.z*back);
+  cam.lookAt(focus.x + heading.x*ahead, FLOOR_Y+0.7, focus.z + heading.z*ahead);
+}
+window.__setCamMode=m=>{camMode=m;};
+
+// 確定性渲染：t∈[0,1]
+let lastHead={x:0,z:1};
+function render(t){
+  const pl=CLIPS[clip].people(t);
+  const pl2=CLIPS[clip].people(Math.min(1,t+0.01));
+  let fx=0,fz=0;
+  A.forEach((a,i)=>{ if(i<pl.length){ a.enabled=true; const p=pl[i]; const w=W(p[0],p[1]); a.setPosition(w); fx+=w.x; fz+=w.z; } else a.enabled=false; });
+  fx/=pl.length; fz/=pl.length;
+  // 跟拍只跟第一個化身的前進方向
+  const w1=W(pl[0][0],pl[0][1]), w1b=W(pl2[0][0],pl2[0][1]);
+  let hx=w1b.x-w1.x, hz=w1b.z-w1.z; const hl=Math.hypot(hx,hz);
+  if(hl>1e-4){ hx/=hl; hz/=hl; lastHead={x:hx,z:hz}; }
+  setCam(t, {x:w1.x, z:w1.z}, lastHead);
+  app.render();
+  document.getElementById('cap').textContent=CLIPS[clip].label;
+  document.getElementById('sub').textContent=CLIPS[clip].sub;
+}
+window.__demo={ render, setClip:c=>{clip=c; renderButtons();}, ready:false, clips:Object.keys(CLIPS), app, cam, A };
+
+// 一次抓整段：渲染每格 → toBlob → POST /upload/frame_<clip>_<idx>.jpg
+window.__grabClip=async(c,N=30)=>{
+  document.getElementById('pick').style.display='none';
+  document.getElementById('sub').style.display='none';
+  clip=c;
+  for(let i=0;i<N;i++){
+    render(i/(N-1));
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.92));
+    await fetch(`/upload/frame_${c}_${String(i).padStart(3,'0')}.jpg`,{method:'POST',body:blob});
+  }
+  return 'grabbed '+N+' frames of '+c;
+};
+
+function renderButtons(){
+  const d=document.getElementById('pick'); d.innerHTML='';
+  for(const k of Object.keys(CLIPS)){
+    const b=document.createElement('button'); b.textContent=CLIPS[k].label;
+    if(k===clip) b.className='on';
+    b.onclick=()=>{ clip=k; renderButtons(); if(window.__demo.autoplay) {} };
+    d.appendChild(b);
+  }
+}
+
+// 載入軌跡 + 場景
+Promise.all([
+  fetch('assets/traj_realpath.json').then(r=>r.json()).then(j=>realpath=j.xz),
+  new Promise((res,rej)=>{
+    const asset=new pc.Asset('s','gsplat',{url:'assets/walk.compressed.ply'});
+    asset.on('load',()=>{ const e=new pc.Entity(); e.addComponent('gsplat',{asset}); e.setEulerAngles(0,0,180); app.root.addChild(e); res(); });
+    asset.on('error',rej); app.assets.add(asset); app.assets.load(asset);
+  })
+]).then(()=>{
+  renderButtons(); window.__demo.ready=true; render(0);
+  const q=new URLSearchParams(location.search);
+
+  // 錄製模式：?record=<clip>[&dur=8000] → 播一輪、MediaRecorder 錄 canvas、自動下載 webm
+  if(q.get('record')){
+    const c=q.get('record'); if(CLIPS[c]) clip=c; renderButtons();
+    const dur=+(q.get('dur')||8000);
+    const stream=canvas.captureStream(30);
+    const rec=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:8e6});
+    const chunks=[]; rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+    rec.onstop=async()=>{
+      const blob=new Blob(chunks,{type:'video/webm'});
+      try{ await fetch('/upload/demo_'+clip+'.webm',{method:'POST',body:blob}); window.__demo.recorded='uploaded'; }
+      catch(e){ // 後備：觸發下載
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='demo_'+clip+'.webm'; a.click(); window.__demo.recorded='download';
+      }
+    };
+    let t0=null;
+    function rplay(ts){ if(t0===null){t0=ts;rec.start();} const t=(ts-t0)/dur; if(t>=1){render(1);rec.stop();return;} render(t); requestAnimationFrame(rplay); }
+    requestAnimationFrame(rplay);
+    return;
+  }
+
+  if(q.get('capture')) return;   // 逐幀擷取模式：外部控制
+
+  // 一般觀看：自動循環播放
+  let t0=null;
+  function play(ts){ if(t0===null)t0=ts; const t=((ts-t0)/9000)%1; render(t); requestAnimationFrame(play); }
+  requestAnimationFrame(play);
+});
+</script>
+</body>
+</html>
