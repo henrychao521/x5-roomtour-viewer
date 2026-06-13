@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>校園數位孿生 — 多樓層導覽（雛形）</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1117;color:#c9d1d9;font-family:system-ui;overflow:hidden}
+  #c{position:fixed;inset:0;width:100%;height:100%}
+  #panel{position:fixed;top:0;left:0;bottom:0;width:240px;background:rgba(13,17,23,.92);
+         border-right:1px solid #30363d;padding:14px;box-sizing:border-box;overflow:auto}
+  h1{font-size:15px;margin:0 0 4px} .hint{font-size:11px;color:#8b949e;margin:0 0 14px}
+  .floor{margin-bottom:10px}
+  .floor>button{width:100%;text-align:left;background:#161b22;color:#c9d1d9;border:1px solid #30363d;
+    padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+  .floor>button.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  .scene{display:block;width:100%;text-align:left;margin:6px 0 0;background:#0d1117;color:#9fd;
+    border:1px solid #21262d;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+  .scene.on{background:#0a6;color:#fff;border-color:#0a6}
+  .scene .live{color:#f85149;font-size:10px}
+  #stack{position:fixed;right:12px;top:12px;background:rgba(13,17,23,.85);border:1px solid #30363d;
+    border-radius:8px;padding:8px 10px;font-size:11px;line-height:1.7}
+  #stack .lv{padding:2px 6px;border-radius:4px;margin:2px 0;background:#161b22}
+  #stack .lv.on{background:#1f6feb;color:#fff}
+  #status{position:fixed;left:252px;bottom:12px;font-size:12px;color:#8b949e}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="panel"><h1>🏫 校園數位孿生</h1><p class="hint">多樓層 / 多場景容器（雛形）<br>場景由 campus.json 定義，新拍的房間直接 append。</p><div id="floors"></div></div>
+<div id="stack"></div>
+<div id="status">載入清單…</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+const canvas=document.getElementById('c');
+const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas)});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize',()=>app.resizeCanvas()); app.start();
+const cam=new pc.Entity(); cam.addComponent('camera',{clearColor:new pc.Color(0.05,0.06,0.08),fov:70,farClip:200});
+app.root.addChild(cam);
+let orbitYaw=20,orbitPitch=-6,orbitR=7.5,target=new pc.Vec3(0,-0.3,0);
+function applyCam(){const ry=orbitYaw*Math.PI/180,rp=orbitPitch*Math.PI/180;
+  cam.setPosition(target.x+orbitR*Math.cos(rp)*Math.sin(ry),target.y-orbitR*Math.sin(rp),target.z+orbitR*Math.cos(rp)*Math.cos(ry));cam.lookAt(target);}
+let drag=false,lx,ly;
+canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY});
+addEventListener('mouseup',()=>drag=false);
+addEventListener('mousemove',e=>{if(!drag)return;orbitYaw-=(e.clientX-lx)*0.3;orbitPitch=Math.max(-80,Math.min(5,orbitPitch-(e.clientY-ly)*0.3));lx=e.clientX;ly=e.clientY;applyCam();});
+canvas.addEventListener('wheel',e=>{orbitR=Math.max(3,Math.min(40,orbitR+e.deltaY*0.01));applyCam();e.preventDefault();},{passive:false});
+
+let cur=null, manifest=null, curFloor=null;
+function loadScene(s){
+  if(cur){cur.destroy();cur=null;}
+  document.getElementById('status').textContent=`載入「${s.name}」…`;
+  const asset=new pc.Asset(s.id,'gsplat',{url:s.splat});
+  asset.on('load',()=>{
+    const e=new pc.Entity(); e.addComponent('gsplat',{asset});
+    const t=s.transform||{t:[0,0,0],yaw_deg:0};
+    e.setEulerAngles(0,(t.yaw_deg||0)+180,180);   // 場景 yaw + 3DGS y-down 翻轉
+    e.setPosition(t.t[0]||0,t.t[1]||0,t.t[2]||0);
+    app.root.addChild(e); cur=e;
+    document.getElementById('status').textContent=`${s.name}　${s.live_camera?'· 🔴 即時攝影機：'+s.live_camera:''}`;
+  });
+  asset.on('error',err=>document.getElementById('status').textContent='載入失敗：'+err);
+  app.assets.add(asset); app.assets.load(asset);
+}
+function renderStack(){
+  const d=document.getElementById('stack'); d.innerHTML='<b>樓層</b>';
+  [...manifest.floors].reverse().forEach(f=>{
+    const x=document.createElement('div'); x.className='lv'+(f.level===curFloor?' on':'');
+    x.textContent=`${f.name}（${f.scenes.length} 場景）`; d.appendChild(x);
+  });
+}
+function renderFloors(){
+  const root=document.getElementById('floors'); root.innerHTML='';
+  manifest.floors.forEach(f=>{
+    const box=document.createElement('div'); box.className='floor';
+    const fb=document.createElement('button'); fb.textContent=f.name; if(f.level===curFloor)fb.className='on';
+    fb.onclick=()=>{curFloor=f.level;renderFloors();renderStack();};
+    box.appendChild(fb);
+    if(f.level===curFloor) f.scenes.forEach(s=>{
+      const sb=document.createElement('button'); sb.className='scene';
+      sb.innerHTML=s.name+(s.live_camera?' <span class="live">●LIVE</span>':'');
+      sb.onclick=()=>{document.querySelectorAll('.scene').forEach(b=>b.classList.remove('on'));sb.classList.add('on');loadScene(s);};
+      box.appendChild(sb);
+    });
+    root.appendChild(box);
+  });
+}
+fetch('campus.json').then(r=>r.json()).then(m=>{
+  manifest=m; curFloor=m.floors[0].level; renderFloors(); renderStack(); applyCam();
+  document.title=m.name+' — 校園數位孿生';
+  loadScene(m.floors[0].scenes[0]);   // 預設載第一個場景
+});
+</script>
+</body>
+</html>

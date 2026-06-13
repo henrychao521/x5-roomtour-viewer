@@ -1,0 +1,29 @@
+{
+  "name": "示範校園",
+  "scale_unit": "scene-relative (待 RTAB-Map LiDAR 標定為公尺)",
+  "world_frame": "以 1F 家政生科教室為原點；其他場景透過樓梯間/LiDAR 對齊後填 transform",
+  "floors": [
+    {
+      "level": 1, "name": "1 樓",
+      "scenes": [
+        {
+          "id": "home-ec-classroom",
+          "name": "家政生科教室",
+          "splat": "../assets/walk.compressed.ply",
+          "sog": "../assets/classroom.sog",
+          "occupancy": "../assets/walk_occupancy.json",
+          "live_camera": "cklivingtech5 (MJPEG :8001/video_feed)",
+          "transform": {"t": [0,0,0], "yaw_deg": 0, "scale": 1},
+          "portals": [
+            {"to": "corridor-1f", "at_world": [4.5, 0, 0], "label": "走廊"}
+          ]
+        }
+      ]
+    }
+  ],
+  "_schema": {
+    "transform": "t=世界位移[x,y,z]，yaw_deg=繞垂直軸旋轉，scale=尺度（對齊後填）",
+    "portals": "場景間傳送點：to=目標場景id，at_world=本場景中傳送點世界座標，label=門口名稱",
+    "floors_link": "樓層間 transform 由樓梯間連續拍攝的 COLMAP 跨樓層重建求得（見 docs/10）"
+  }
+}
