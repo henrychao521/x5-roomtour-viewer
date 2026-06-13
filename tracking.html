@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人物移動追蹤 — 上視圖</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1117;color:#c9d1d9;font-family:system-ui;overflow:hidden}
+  #wrap{display:flex;height:100%}
+  #side{width:230px;padding:14px;box-sizing:border-box;background:#11161d;border-right:1px solid #30363d;overflow:auto}
+  h1{font-size:15px;margin:0 0 10px} .row{font-size:12px;margin:6px 0;color:#9aa}
+  button{width:100%;margin:5px 0;background:#1f6feb;color:#fff;border:0;padding:8px;border-radius:6px;cursor:pointer;font-size:13px}
+  button.sec{background:#21262d;color:#c9d1d9}
+  #stat{font-size:12px;line-height:1.7;margin-top:10px;border-top:1px solid #30363d;padding-top:10px}
+  #log{font-size:11px;color:#7d8;font-family:ui-monospace,monospace;margin-top:8px;max-height:200px;overflow:auto;white-space:pre}
+  canvas{flex:1;display:block;background:#0d1117}
+  .dot{color:#f85149}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="side">
+    <h1>📍 人物移動追蹤</h1>
+    <div class="row">上視圖 · 即時座標 · 軌跡記錄</div>
+    <button id="live">🔴 連線攝影機（P1）</button>
+    <button id="demo" class="sec">▶ 播放示範軌跡</button>
+    <button id="clear" class="sec">清除軌跡</button>
+    <button id="export" class="sec">⬇ 匯出軌跡 JSON</button>
+    <div id="stat"></div>
+    <div id="log"></div>
+  </div>
+  <canvas id="c"></canvas>
+</div>
+<script type="module">
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let scene=null, K=0.86;
+const tracks={};        // id -> [{t,x,z}]
+let mode='idle', ws=null, demoTimer=null;
+
+fetch('assets/tracking_scene.json').then(r=>r.json()).then(s=>{scene=s;K=s.k;resize();draw();});
+addEventListener('resize',()=>{resize();draw();});
+function resize(){ cv.width=cv.clientWidth*devicePixelRatio; cv.height=cv.clientHeight*devicePixelRatio; }
+
+// 世界(公尺,場景x,z) → 螢幕；含留白與等比
+function world2px(){
+  const r=scene.room_m, pad=40*devicePixelRatio;
+  const w=r.x1-r.x0, h=r.z1-r.z0;
+  const s=Math.min((cv.width-2*pad)/w,(cv.height-2*pad)/h);
+  const ox=(cv.width-w*s)/2-r.x0*s, oy=(cv.height-h*s)/2-r.z0*s;
+  return {s,ox,oy};
+}
+function P(x,z){const{s,ox,oy}=world2px();return [x*s+ox, z*s+oy];}
+
+function draw(){
+  if(!scene)return;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const{s}=world2px(), r=scene.room_m;
+  // 1m 格線
+  ctx.strokeStyle='#1b222b';ctx.lineWidth=1;
+  for(let gx=Math.ceil(r.x0);gx<=r.x1;gx++){const[a,b]=P(gx,r.z0),[c,d]=P(gx,r.z1);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
+  for(let gz=Math.ceil(r.z0);gz<=r.z1;gz++){const[a,b]=P(r.x0,gz),[c,d]=P(r.x1,gz);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
+  // 家具足跡
+  ctx.fillStyle='rgba(202,164,114,0.30)';
+  for(const[fx,fz]of scene.furniture_m){const[a,b]=P(fx,fz);ctx.fillRect(a-1.5,b-1.5,3,3);}
+  // 牆
+  const[wx,wy]=P(r.x0,r.z0);ctx.strokeStyle='#8b949e';ctx.lineWidth=2*devicePixelRatio;
+  ctx.strokeRect(wx,wy,(r.x1-r.x0)*s,(r.z1-r.z0)*s);
+  // 原點 + 軸
+  const[ox,oy]=P(0,0);
+  ctx.strokeStyle='#444';ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(P(r.x0,0)[0],oy);ctx.lineTo(P(r.x1,0)[0],oy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ox,P(0,r.z0)[1]);ctx.lineTo(ox,P(0,r.z1)[1]);ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle='#fff';ctx.lineWidth=2*devicePixelRatio;
+  ctx.beginPath();ctx.moveTo(ox-9,oy);ctx.lineTo(ox+9,oy);ctx.moveTo(ox,oy-9);ctx.lineTo(ox,oy+9);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font=`${12*devicePixelRatio}px system-ui`;ctx.fillText('原點(0,0)',ox+10,oy-6);
+  ctx.fillStyle='#888';ctx.fillText('+X',P(r.x1,0)[0]-26,oy-6);ctx.fillText('+Z',ox+6,P(0,r.z1)[1]-6);
+  // 比例尺 1m
+  const[s0]=P(r.x0+0.3,r.z1-0.3),[s1]=P(r.x0+1.3,r.z1-0.3);
+  ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s0,P(r.x0+0.3,r.z1-0.3)[1]);ctx.lineTo(s1,P(r.x0+1.3,r.z1-0.3)[1]);ctx.stroke();
+  ctx.fillText('1m',s0+ (s1-s0)/2-8, P(0,r.z1-0.3)[1]-6);
+  // 軌跡
+  const cols=['#f85149','#1f9fff','#2ecc40','#ffd33d','#d36bff'];
+  Object.entries(tracks).forEach(([id,pts],k)=>{
+    if(pts.length<1)return;const col=cols[k%cols.length];
+    ctx.strokeStyle=col;ctx.lineWidth=2*devicePixelRatio;ctx.beginPath();
+    pts.forEach((p,i)=>{const[a,b]=P(p.x,p.z);i?ctx.lineTo(a,b):ctx.moveTo(a,b);});ctx.stroke();
+    const last=pts[pts.length-1];const[a,b]=P(last.x,last.z);
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(a,b,7*devicePixelRatio,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillText(`#${id} (${last.x.toFixed(1)}, ${last.z.toFixed(1)})m`,a+10,b);
+  });
+  // 狀態
+  const total=Object.values(tracks).reduce((s,p)=>s+p.length,0);
+  document.getElementById('stat').innerHTML=
+    `模式：${mode}<br>目前人數：<b>${Object.keys(tracks).length}</b><br>累計軌跡點：<b>${total}</b><br>室內：${(r.x1-r.x0).toFixed(1)}×${(r.z1-r.z0).toFixed(1)} m`;
+}
+function addPoint(id,x,z,t){ (tracks[id]=tracks[id]||[]).push({t,x,z}); if(tracks[id].length>600)tracks[id].shift(); }
+
+// 即時：P1 攝影機
+document.getElementById('live').onclick=()=>{
+  if(ws){ws.close();ws=null;}
+  mode='live(連線中…)';draw();
+  ws=new WebSocket('ws://localhost:8787');
+  ws.onopen=()=>{mode='🔴 即時攝影機';log('已連線 ws://8787');};
+  ws.onmessage=ev=>{const d=JSON.parse(ev.data);
+    d.people.forEach((p,i)=>addPoint(i,p.x,p.z,d.t));   // 注意：未校準時為示意座標
+    if(d.people.length)log(`t=${d.t.toFixed(0)} ${d.people.length}人 ${d.people.map(p=>`(${p.x.toFixed(1)},${p.z.toFixed(1)})`).join(' ')}`);
+    draw();};
+  ws.onclose=()=>{if(mode.includes('即時'))mode='已斷線';draw();};
+  ws.onerror=()=>log('⚠ 連不到橋接（教室目前可能無人/攝影機未接）');
+};
+// 示範：重播真實軌跡
+document.getElementById('demo').onclick=async()=>{
+  clearTimeout(demoTimer);Object.keys(tracks).forEach(k=>delete tracks[k]);mode='▶ 示範軌跡';
+  const traj=(await fetch('assets/traj_realpath.json').then(r=>r.json())).xz;
+  let i=0;(function step(){ if(i>=traj.length){mode='示範結束';draw();return;}
+    addPoint('demo',traj[i][0]*K,traj[i][1]*K,i);i++;draw();demoTimer=setTimeout(step,120);})();
+};
+document.getElementById('clear').onclick=()=>{Object.keys(tracks).forEach(k=>delete tracks[k]);draw();};
+document.getElementById('export').onclick=()=>{
+  const blob=new Blob([JSON.stringify(tracks,null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tracks.json';a.click();
+};
+function log(m){const el=document.getElementById('log');el.textContent=(m+'\n'+el.textContent).slice(0,1500);}
+</script>
+</body>
+</html>
