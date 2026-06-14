@@ -46,12 +46,12 @@ const SPEED = 1.6, SPRINT = 2.8;
 const canvas = document.getElementById('c');
 const app = new pc.Application(canvas, {
   mouse: new pc.Mouse(canvas), keyboard: new pc.Keyboard(window),
-  graphicsDeviceOptions: { antialias: false, xrCompatible: true }
+  graphicsDeviceOptions: { antialias: false, xrCompatible: true, preserveDrawingBuffer: true }
 });
 app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
 app.setCanvasResolution(pc.RESOLUTION_AUTO);
 addEventListener('resize', () => app.resizeCanvas());
-app.start();
+app.start(); window.__app=app;
 
 const cam = new pc.Entity('cam');
 cam.addComponent('camera', { clearColor: new pc.Color(0.06,0.06,0.07), fov: 75, nearClip: 0.05, farClip: 100 });

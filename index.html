@@ -48,7 +48,12 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;
      display:flex;flex-direction:column;gap:8px;transition:.18s;min-height:150px}
   .card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:var(--shadow)}
+  .card .thumb{width:calc(100% + 36px);height:138px;margin:-18px -18px 6px;object-fit:cover;
+     border-radius:13px 13px 0 0;border-bottom:1px solid var(--line);background:#0a0d12}
   .card .ic{font-size:26px}
+  .card.hasimg .ic{position:absolute;font-size:22px;margin:8px;
+     background:rgba(11,14,20,.7);border-radius:8px;padding:2px 7px;backdrop-filter:blur(4px)}
+  .card{position:relative;overflow:hidden}
   .card h3{margin:0;font-size:16.5px;font-weight:750}
   .card p{margin:0;color:var(--mut);font-size:13.5px;flex:1}
   .card .go{font-size:13px;color:var(--accent);font-weight:700}
@@ -95,15 +100,18 @@
 
   <h2 class="sec">沉浸瀏覽</h2>
   <div class="grid">
-    <a class="card" href="classroom-walk.html">
+    <a class="card hasimg" href="classroom-walk.html">
+      <img class="thumb" src="assets/thumb_walk.jpg" alt="">
       <div class="ic">🚶</div><h3>第一人稱行走</h3>
       <p>WASD / 觸控搖桿走動，牆與家具有物理碰撞，雙層垂直感知，支援 VR。</p>
       <span class="chip">推薦入口</span><span class="go">進入 →</span></a>
-    <a class="card" href="classroom.html">
+    <a class="card hasimg" href="classroom.html">
+      <img class="thumb" src="assets/thumb_clear.jpg" alt="">
       <div class="ic">🏛️</div><h3>清晰瀏覽</h3>
       <p>354 視角訓練、清理後的乾淨版本，黑板字跡可讀。滑鼠軌道環視。</p>
       <span class="chip">畫質優先</span><span class="go">進入 →</span></a>
-    <a class="card" href="classroom-hd.html">
+    <a class="card hasimg" href="classroom-hd.html">
+      <img class="thumb" src="assets/thumb_wide.jpg" alt="">
       <div class="ic">🌐</div><h3>廣域瀏覽</h3>
       <p>696 視角全覆蓋版，含更多角落與設備，霧紗略多。比較資料量的影響。</p>
       <span class="chip">覆蓋優先</span><span class="go">進入 →</span></a>
@@ -143,7 +151,8 @@
 
   <h2 class="sec">空間規劃</h2>
   <div class="grid">
-    <a class="card" href="campus/">
+    <a class="card hasimg" href="campus/">
+      <img class="thumb" src="assets/thumb_campus.jpg" alt="">
       <div class="ic">🏫</div><h3>校園多樓層導覽</h3>
       <p>多場景 + 樓層堆疊的容器雛形。新拍房間 append 即現，樓梯間連續拍攝對齊樓層。</p>
       <span class="chip">雛形</span><span class="go">開啟 →</span></a>

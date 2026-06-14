@@ -32,9 +32,9 @@
 <script type="module">
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 const canvas=document.getElementById('c');
-const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas)});
+const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas),graphicsDeviceOptions:{preserveDrawingBuffer:true}});
 app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
-addEventListener('resize',()=>app.resizeCanvas()); app.start();
+addEventListener('resize',()=>app.resizeCanvas()); app.start(); window.__app=app;
 const cam=new pc.Entity(); cam.addComponent('camera',{clearColor:new pc.Color(0.05,0.06,0.08),fov:70,farClip:200});
 app.root.addChild(cam);
 let orbitYaw=20,orbitPitch=-6,orbitR=7.5,target=new pc.Vec3(0,-0.3,0);
