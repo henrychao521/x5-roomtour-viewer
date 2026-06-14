@@ -44,6 +44,18 @@
   .feat b{color:var(--ink)}
   h2.sec{font-size:14px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;margin:38px 0 14px;
      border-left:3px solid var(--accent);padding-left:10px}
+  .tech-note{background:var(--bg2);border:1px solid var(--line);border-radius:10px;margin:0 0 16px}
+  .tech-note summary{cursor:pointer;padding:11px 15px;font-size:13px;font-weight:650;color:var(--ink);
+     list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .tech-note summary::-webkit-details-marker{display:none}
+  .tech-note summary::after{content:'＋';color:var(--accent);font-weight:800;font-size:15px}
+  .tech-note[open] summary::after{content:'－'}
+  .tech-note .body{padding:2px 15px 14px;font-size:13px;color:var(--mut);line-height:1.75}
+  .tech-note .body p{margin:0 0 9px}.tech-note .body b{color:var(--ink)}
+  .tech-note .refs{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+  .tech-note .refs a{color:var(--accent);text-decoration:none;font-size:12.5px}
+  .tech-note .refs a:hover{text-decoration:underline}
+  .tech-note .refs i{color:var(--mut);font-style:normal}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;
      display:flex;flex-direction:column;gap:8px;transition:.18s;min-height:150px}
@@ -99,6 +111,18 @@
   </div>
 
   <h2 class="sec">沉浸瀏覽</h2>
+  <details class="tech-note"><summary>📖 技術說明與學習資源 — 3D 高斯潑濺（3DGS）</summary>
+    <div class="body">
+      <p><b>原理：</b>把空間表示成數百萬顆「各向異性高斯球」（位置、形狀、顏色、不透明度），用可微分光柵化在多視角照片上最佳化，達到照片級且<b>可即時渲染</b>的輻射場。本站用 <b>Brush</b> 訓練、<b>SOG</b> 壓縮、<b>PlayCanvas/SuperSplat</b> 在瀏覽器即時繪製。相較 NeRF，3DGS 渲染快上百倍、適合 Web。</p>
+      <div class="refs">
+        <a href="https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/" target="_blank">▸ 原始論文：3D Gaussian Splatting for Real-Time Radiance Field Rendering（Kerbl 等, SIGGRAPH 2023）<i> — INRIA 專案頁</i></a>
+        <a href="https://arxiv.org/abs/2308.04079" target="_blank">▸ arXiv:2308.04079（論文全文＋程式碼連結）</a>
+        <a href="https://github.com/ArthurBrussee/brush" target="_blank">▸ Brush — Rust/wgpu 跨平台 3DGS 訓練器（本站用於 Apple Silicon）</a>
+        <a href="https://github.com/playcanvas/supersplat" target="_blank">▸ SuperSplat — 瀏覽器 3DGS 編輯/清理工具</a>
+        <a href="https://github.com/MrNeRF/awesome-3D-gaussian-splatting" target="_blank">▸ awesome-3D-gaussian-splatting — 論文/工具總彙整（入門必看）</a>
+      </div>
+    </div>
+  </details>
   <div class="grid">
     <a class="card hasimg" href="classroom-walk.html">
       <img class="thumb" src="assets/thumb_walk.jpg" alt="">
@@ -118,6 +142,18 @@
   </div>
 
   <h2 class="sec">空間分析</h2>
+  <details class="tech-note"><summary>📖 技術說明與學習資源 — SfM 位姿、參考物比例尺、幾何抽取</summary>
+    <div class="body">
+      <p><b>原理：</b><b>COLMAP</b> 用 Structure-from-Motion（SfM）從多張照片解出相機位姿與稀疏 3D 點雲，這是 3DGS 訓練的前置。3DGS/SfM 本身是<b>任意尺度</b>，本站用畫面中「已知尺寸的參考物」（天花板日光燈管 T8 4ft=1.22m）反推出公尺比例 k，再用 <b>Open3D</b> 從點雲抽出網格、碰撞殼與佔據格，量距、算面積、出建築平面圖。</p>
+      <div class="refs">
+        <a href="https://colmap.github.io/" target="_blank">▸ COLMAP 官方文件（SfM/MVS 開源工具）</a>
+        <a href="https://demuc.de/papers/schoenberger2016sfm.pdf" target="_blank">▸ 論文：Structure-from-Motion Revisited（Schönberger & Frahm, CVPR 2016）</a>
+        <a href="https://www.open3d.org/docs/release/" target="_blank">▸ Open3D 文件（點雲處理、Poisson/Alpha Shape 重建、配準）</a>
+        <a href="https://hhoppe.com/poissonrecon.pdf" target="_blank">▸ Poisson Surface Reconstruction（Kazhdan 等）— 點雲轉網格經典法</a>
+        <a href="https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html" target="_blank">▸ OpenCV 單應變換（影像座標↔平面，量測與俯視映射用）</a>
+      </div>
+    </div>
+  </details>
   <div class="grid">
     <a class="card" href="tracking.html">
       <div class="ic">📐</div><h3>建築平面圖 + 人流追蹤</h3>
@@ -134,6 +170,18 @@
   </div>
 
   <h2 class="sec">數位孿生</h2>
+  <details class="tech-note"><summary>📖 技術說明與學習資源 — 即時人物偵測、座標映射、化身</summary>
+    <div class="body">
+      <p><b>原理：</b>固定攝影機畫面經 <b>MediaPipe</b> 即時偵測人物，取「腳底點」經<b>單應變換</b>映到 3DGS 場景的地板座標 (x,z)，再用 WebSocket 把座標串流到瀏覽器，在平面圖上即時定位 —— 即「實體空間↔虛擬模型即時同步」的<b>數位孿生</b>。進階路線：單相機 3D 人體姿態（骨架級化身）、高斯化身（照片級本人）。</p>
+      <div class="refs">
+        <a href="https://ai.google.dev/edge/mediapipe/solutions/guide" target="_blank">▸ MediaPipe（Google）— 物件偵測 / 人體姿態，可在 CPU 即時跑</a>
+        <a href="https://www.ibm.com/topics/what-is-a-digital-twin" target="_blank">▸ 數位孿生（Digital Twin）概念入門</a>
+        <a href="https://arxiv.org/abs/2504.12186" target="_blank">▸ CoMotion — 單相機線上多人 3D 姿態追蹤（arXiv，骨架化身路線）</a>
+        <a href="https://shenhanqian.github.io/gaussian-avatars" target="_blank">▸ GaussianAvatars — 3D 高斯人臉/人體化身（照片級本人路線）</a>
+        <a href="https://github.com/mkocabas/awesome-human-pose-estimation" target="_blank">▸ awesome-human-pose-estimation — 人體姿態估計資源彙整</a>
+      </div>
+    </div>
+  </details>
   <div class="grid">
     <a class="card" href="tracking.html">
       <div class="ic">📍</div><h3>即時人流（P1）</h3>
@@ -150,6 +198,18 @@
   </div>
 
   <h2 class="sec">空間規劃</h2>
+  <details class="tech-note"><summary>📖 技術說明與學習資源 — 大範圍 / 多樓層 3DGS</summary>
+    <div class="body">
+      <p><b>原理：</b>校園級無法塞進單一巨型模型（SfM 配對 O(n²)、記憶體與瀏覽器載入都會爆）。做法是<b>切塊</b>：每房間/走廊一個有界場景，用<b>導航圖</b>相連、串流載入。多樓層靠<b>樓梯間連續拍攝</b>讓 COLMAP 跨層重建求出垂直 transform，再用 <b>iPhone RTAB-Map（LiDAR）</b>給真實公尺尺度堆疊對齊。單一無縫巨模型才需 CUDA 的階層式 3DGS。</p>
+      <div class="refs">
+        <a href="https://repo-sam.inria.fr/fungraph/hierarchical-3d-gaussians/" target="_blank">▸ Hierarchical 3DGS（Kerbl 等 2024）— 大場景即時渲染 · arXiv:2406.12080</a>
+        <a href="https://vastgaussian.github.io/" target="_blank">▸ VastGaussian（CVPR 2024）— 大規模場景重建 · arXiv:2402.17427</a>
+        <a href="https://arxiv.org/abs/2404.01133" target="_blank">▸ CityGaussian — 城市級 3DGS（LoD 即時渲染）</a>
+        <a href="https://waymo.com/research/block-nerf/" target="_blank">▸ Block-NeRF（Waymo, CVPR 2022）— 街區級切塊神經渲染先驅</a>
+        <a href="https://introlab.github.io/rtabmap/" target="_blank">▸ RTAB-Map — LiDAR/視覺 SLAM（真實尺度與樓層對齊骨架）</a>
+      </div>
+    </div>
+  </details>
   <div class="grid">
     <a class="card hasimg" href="campus/">
       <img class="thumb" src="assets/thumb_campus.jpg" alt="">
