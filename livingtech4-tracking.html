@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工坊人流分析 — 生活科技教室4</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1117;color:#c9d1d9;font-family:system-ui;overflow:hidden}
+  #wrap{display:flex;height:100%}
+  #side{width:248px;flex:0 0 248px;padding:14px;box-sizing:border-box;background:#11161d;border-right:1px solid #30363d;overflow:auto}
+  h1{font-size:15px;margin:0 0 4px} .sub{font-size:11px;color:#7d8896;margin-bottom:10px}
+  button{width:100%;margin:5px 0;background:#1f6feb;color:#fff;border:0;padding:8px;border-radius:6px;cursor:pointer;font-size:13px}
+  button.sec{background:#21262d;color:#c9d1d9} button.on{background:#e8842c}
+  #stat{font-size:12px;line-height:1.8;margin-top:10px;border-top:1px solid #30363d;padding-top:10px}
+  #stat b{color:#fff} .hot{color:#f0883e;font-weight:600}
+  #azc{width:100%;height:60px;margin-top:8px;background:#0d1117;border-radius:4px}
+  #log{font-size:11px;color:#7d8;font-family:ui-monospace,monospace;margin-top:8px;max-height:160px;overflow:auto;white-space:pre}
+  canvas#c{flex:1;display:block;background:#0d1117}
+  a.link{display:block;color:#58a6ff;font-size:12px;margin:4px 0;text-decoration:none}
+  .legend{font-size:11px;color:#8b949e;margin-top:10px;border-top:1px solid #30363d;padding-top:8px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="side">
+    <a href="index.html" style="display:inline-block;color:#8b97a7;font-size:12px;text-decoration:none;margin-bottom:8px">← X5 RoomTour</a>
+    <h1>🔥 工坊人流分析</h1>
+    <div class="sub">生活科技教室4 · 天花板環景相機 · 整週真實資料</div>
+    <button id="heat" class="on">🔥 整週熱區（開）</button>
+    <button id="live" class="sec">🔴 即時連線（天花板相機）</button>
+    <button id="clear" class="sec">清除即時軌跡</button>
+    <a class="link" href="assets/lt4_week_panorama.png" target="_blank">📊 整週全景熱區圖 ↗</a>
+    <a class="link" href="assets/lt4_week_topdown.png" target="_blank">🛰 整週俯視熱區圖 ↗</a>
+    <div id="stat"></div>
+    <canvas id="azc"></canvas>
+    <div class="legend">
+      <div><i style="background:#fee08b"></i>低 → <i style="background:#f46d43"></i>中 → <i style="background:#a50026"></i>高 人流密度</div>
+      <div style="margin-top:4px"><i style="background:#d9c9a8"></i>家具 &nbsp; <i style="background:#1f9fff"></i>窗</div>
+    </div>
+    <div id="log"></div>
+  </div>
+  <canvas id="c"></canvas>
+</div>
+<script type="module">
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let arch=null, flow=null, showHeat=true, ws=null;
+const tracks={};
+
+Promise.all([
+  fetch('assets/arch_lt4.json').then(r=>r.json()),
+  fetch('assets/livingtech4_flow.json').then(r=>r.json())
+]).then(([a,f])=>{arch=a;flow=f;resize();draw();drawAz();fillStat();});
+addEventListener('resize',()=>{resize();draw();});
+function resize(){cv.width=cv.clientWidth*devicePixelRatio;cv.height=cv.clientHeight*devicePixelRatio;}
+
+function room(){return arch.room;}
+function world2px(){
+  const r=room(), pad=46*devicePixelRatio;
+  const w=r.x1-r.x0, h=r.z1-r.z0;
+  const s=Math.min((cv.width-2*pad)/w,(cv.height-2*pad)/h);
+  const ox=(cv.width-w*s)/2-r.x0*s, oy=(cv.height-h*s)/2-r.z0*s;
+  return {s,ox,oy};
+}
+function P(x,z){const{s,ox,oy}=world2px();return [x*s+ox, z*s+oy];}
+
+// inferno 近似色階
+function heatColor(t){ // t 0..1
+  const stops=[[13,17,23,0],[60,9,50,0.55],[122,28,48,0.78],[183,55,38,0.9],[244,109,67,0.95],[254,224,139,1]];
+  t=Math.max(0,Math.min(1,t)); const f=t*(stops.length-1); const i=Math.floor(f), g=f-i;
+  const a=stops[i], b=stops[Math.min(i+1,stops.length-1)];
+  const m=(k)=>Math.round(a[k]+(b[k]-a[k])*g);
+  return `rgba(${m(0)},${m(1)},${m(2)},${(a[3]+(b[3]-a[3])*g).toFixed(2)})`;
+}
+
+function draw(){
+  if(!arch)return;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const{s}=world2px(), r=room();
+  // 1m 格線
+  ctx.strokeStyle='#1b222b';ctx.lineWidth=1;
+  for(let gx=Math.ceil(r.x0);gx<=r.x1;gx++){const[a,b]=P(gx,r.z0),[c,d]=P(gx,r.z1);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
+  for(let gz=Math.ceil(r.z0);gz<=r.z1;gz++){const[a,b]=P(r.x0,gz),[c,d]=P(r.x1,gz);ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
+  // 熱區(房間網格)
+  if(showHeat&&flow){
+    const gsz=flow.grid;
+    for(let iz=0;iz<flow.nz;iz++)for(let ix=0;ix<flow.nx;ix++){
+      const v=flow.heat[iz][ix]; if(!v)continue;
+      const t=Math.pow(v/flow.hmax,0.45);
+      ctx.fillStyle=heatColor(t);
+      const[a,b]=P(r.x0+ix*gsz, r.z0+iz*gsz);
+      ctx.fillRect(a,b,gsz*s+1,gsz*s+1);
+    }
+  }
+  drawArch(s,r);
+  // 相機標記(天花板中央)
+  const[cxp,cyp]=P(flow.cam.x,flow.cam.z);
+  ctx.strokeStyle='#67e8f9';ctx.lineWidth=2*devicePixelRatio;
+  ctx.beginPath();ctx.arc(cxp,cyp,7*devicePixelRatio,0,7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cxp-10,cyp);ctx.lineTo(cxp+10,cyp);ctx.moveTo(cxp,cyp-10);ctx.lineTo(cxp,cyp+10);ctx.stroke();
+  ctx.fillStyle='#67e8f9';ctx.font=`${11*devicePixelRatio}px system-ui`;ctx.fillText('天花板相機',cxp+12,cyp-6);
+  // 即時軌跡
+  const cols=['#f85149','#1f9fff','#2ecc40','#ffd33d','#d36bff'];
+  Object.entries(tracks).forEach(([id,pts],k)=>{
+    if(pts.length<1)return;const col=cols[k%cols.length];
+    ctx.strokeStyle=col;ctx.lineWidth=2.5*devicePixelRatio;ctx.beginPath();
+    pts.forEach((p,i)=>{const[a,b]=P(p.x,p.z);i?ctx.lineTo(a,b):ctx.moveTo(a,b);});ctx.stroke();
+    const last=pts[pts.length-1];const[a,b]=P(last.x,last.z);
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(a,b,7*devicePixelRatio,0,7);ctx.fill();
+  });
+  // 比例尺
+  const yb=P(r.x0,r.z1)[1]-14*devicePixelRatio;
+  const[s0]=P(r.x0+0.3,0),[s1]=P(r.x0+1.3,0);
+  ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s0,yb);ctx.lineTo(s1,yb);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.fillText('1m',(s0+s1)/2-8,yb-6);
+}
+function drawArch(s,r){
+  const dpr=devicePixelRatio, T=arch.wall_t;
+  const[ox0,oy0]=P(r.x0-T,r.z0-T),[ox1,oy1]=P(r.x1+T,r.z1+T);
+  const[ix0,iy0]=P(r.x0,r.z0),[ix1,iy1]=P(r.x1,r.z1);
+  ctx.fillStyle='#3a3a3a';
+  ctx.beginPath();ctx.rect(ox0,oy0,ox1-ox0,oy1-oy0);ctx.rect(ix0,iy0,ix1-ix0,iy1-iy0);ctx.fill('evenodd');
+  const drawWin=(wallx,segs)=>segs.forEach(([a,b])=>{
+    if(b-a<0.7)return;const[,ya]=P(wallx,a),[,yb]=P(wallx,b);
+    [-T*0.5,0,T*0.5].forEach(o=>{const[xx]=P(wallx+o,a);ctx.strokeStyle='#1f9fff';ctx.lineWidth=1.3*dpr;ctx.beginPath();ctx.moveTo(xx,ya);ctx.lineTo(xx,yb);ctx.stroke();});
+  });
+  drawWin(r.x0,arch.windows.left);drawWin(r.x1,arch.windows.right);
+  // 燈(若有)
+  if(arch.lights&&arch.lights.length){
+    ctx.strokeStyle='#e8a317';ctx.lineWidth=1*dpr;ctx.setLineDash([4*dpr,2*dpr]);
+    arch.lights.forEach(l=>{const th=l.ang*Math.PI/180,hl=l.len/2,w=0.09;
+      const ux=Math.cos(th),uy=Math.sin(th);const[cx,cy]=P(l.x,l.z);
+      const dx=ux*hl*s,dy=uy*hl*s,px=-uy*w*s,py=ux*w*s;
+      ctx.beginPath();ctx.moveTo(cx-dx-px,cy-dy-py);ctx.lineTo(cx+dx-px,cy+dy-py);
+      ctx.lineTo(cx+dx+px,cy+dy+py);ctx.lineTo(cx-dx+px,cy-dy+py);ctx.closePath();ctx.stroke();});
+    ctx.setLineDash([]);
+  }
+  // 家具(半透明,避免蓋掉熱區)
+  arch.furniture.forEach(o=>{
+    ctx.fillStyle='rgba(217,201,168,0.45)';ctx.strokeStyle='#7a5230';ctx.lineWidth=1.1*dpr;
+    ctx.beginPath();o.box.forEach((p,i)=>{const[a,b]=P(p[0],p[1]);i?ctx.lineTo(a,b):ctx.moveTo(a,b);});
+    ctx.closePath();ctx.fill();ctx.stroke();
+    const[cx,cy]=P(o.cx,o.cz);ctx.fillStyle='#cdbf9e';ctx.font=`${8*dpr}px system-ui`;ctx.textAlign='center';
+    ctx.fillText(o.label,cx,cy+3*dpr);ctx.textAlign='left';
+  });
+}
+// 側欄方位直方圖
+function drawAz(){
+  const c=document.getElementById('azc'),x=c.getContext('2d');
+  c.width=c.clientWidth*devicePixelRatio;c.height=c.clientHeight*devicePixelRatio;
+  const h=flow.az_hist,mx=Math.max(...h),W=c.width,H=c.height,bw=W/h.length;
+  x.clearRect(0,0,W,H);
+  h.forEach((v,i)=>{const bh=v/mx*(H-12);x.fillStyle=v/mx>0.6?'#f0883e':'#3a4a5a';x.fillRect(i*bw,H-bh,bw-1,bh);});
+  x.fillStyle='#7d8896';x.font=`${9*devicePixelRatio}px system-ui`;
+  x.fillText('0°',2,H-2);x.fillText('180°',W/2-8,H-2);x.fillText('360°',W-26,H-2);
+  x.fillStyle='#f0883e';x.fillText('▲熱區 314°(前方示範區)',W*0.5,10*devicePixelRatio);
+}
+function fillStat(){
+  const r=room(),w=(r.x1-r.x0),l=(r.z1-r.z0);
+  document.getElementById('stat').innerHTML=
+    `整週偵測點：<b>${flow.total.toLocaleString()}</b><br>`+
+    `最熱方位：<span class="hot">az≈${flow.hot_az}°</span> 前方示範/教學區<br>`+
+    `室內：<b>${w.toFixed(1)}×${l.toFixed(1)} m</b> ≈ ${(w*l).toFixed(0)}m²<br>`+
+    `相機：天花板中央環景<br>`+
+    `<span style="font-size:11px;color:#6e7681">${flow.note}</span>`;
+}
+document.getElementById('heat').onclick=e=>{showHeat=!showHeat;e.target.classList.toggle('on',showHeat);e.target.textContent=showHeat?'🔥 整週熱區（開）':'🔥 整週熱區（關）';draw();};
+document.getElementById('clear').onclick=()=>{Object.keys(tracks).forEach(k=>delete tracks[k]);draw();};
+document.getElementById('live').onclick=()=>{
+  if(ws){ws.close();ws=null;}
+  log('連線 ws://localhost:8787 …');
+  ws=new WebSocket('ws://localhost:8787');
+  ws.onopen=()=>log('已連線（天花板相機橋接）');
+  ws.onmessage=ev=>{const d=JSON.parse(ev.data);
+    d.people.forEach((p,i)=>{(tracks[i]=tracks[i]||[]).push({t:d.t,x:p.x,z:p.z});if(tracks[i].length>400)tracks[i].shift();});
+    if(d.people.length)log(`t=${(d.t||0).toFixed(0)} ${d.people.length}人`);draw();};
+  ws.onerror=()=>log('⚠ 連不到橋接（相機未接/工坊目前無人）');
+  ws.onclose=()=>log('連線關閉');
+};
+function log(m){const el=document.getElementById('log');el.textContent=(m+'\n'+el.textContent).slice(0,1400);}
+</script>
+</body>
+</html>
