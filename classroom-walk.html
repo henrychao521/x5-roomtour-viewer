@@ -40,8 +40,8 @@
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 
 // 場景為 COLMAP y-down：splat 繞 Z 轉 180° 後，世界 = (-x, -y, z)
-const FLOOR_Y = -0.945, EYE = 1.0, RADIUS = 0.22, SPAWN = [-0.22, 0.04];
-const SPEED = 1.6, SPRINT = 2.8;
+const FLOOR_Y = -1.65, EYE = 1.62, RADIUS = 0.28, SPAWN = [2.18, 0.85];
+const SPEED = 1.55, SPRINT = 2.70;
 
 const canvas = document.getElementById('c');
 const app = new pc.Application(canvas, {
@@ -60,7 +60,7 @@ app.root.addChild(cam);
 
 // ---- 佔據格（雙層：腿/頭）----
 let legs=null, head=null, gridO=null, vox=0.15;
-fetch('assets/walk_occupancy.json').then(r=>r.json()).then(j=>{
+fetch('assets/walk_dn_occupancy.json').then(r=>r.json()).then(j=>{
   legs=j.occupied_legs||j.occupied_topdown; head=j.occupied_head||j.occupied_topdown;
   gridO=j.grid_origin; vox=j.voxel;
 });
@@ -82,7 +82,7 @@ function blocked(x,z){
 const fill=document.getElementById('fill'), pct=document.getElementById('pct');
 const tip=document.getElementById('enterTip');
 async function loadScene(){
-  const res = await fetch('assets/walk.compressed.ply');
+  const res = await fetch('assets/walk_dn.compressed.ply');
   const total = +res.headers.get('Content-Length')||24011404;
   const reader = res.body.getReader(); const chunks=[]; let got=0;
   while(true){
@@ -93,7 +93,7 @@ async function loadScene(){
   }
   const blob=new Blob(chunks); const url=URL.createObjectURL(blob);
   pct.textContent='解碼中…';
-  const asset=new pc.Asset('classroom','gsplat',{url, filename:'walk.compressed.ply'});
+  const asset=new pc.Asset('classroom','gsplat',{url, filename:'walk_dn.compressed.ply'});
   asset.on('load',()=>{
     const e=new pc.Entity('splat');
     e.addComponent('gsplat',{asset});
