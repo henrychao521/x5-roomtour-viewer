@@ -6,14 +6,21 @@
 <style>
   html,body{margin:0;height:100%;background:#0d1117;color:#c9d1d9;font-family:system-ui;overflow:hidden}
   #wrap{display:flex;height:100%}
-  #side{width:230px;padding:14px;box-sizing:border-box;background:#11161d;border-right:1px solid #30363d;overflow:auto}
+  #side{width:230px;flex:0 0 230px;padding:14px;box-sizing:border-box;background:#11161d;border-right:1px solid #30363d;overflow:auto}
   h1{font-size:15px;margin:0 0 10px} .row{font-size:12px;margin:6px 0;color:#9aa}
   button{width:100%;margin:5px 0;background:#1f6feb;color:#fff;border:0;padding:8px;border-radius:6px;cursor:pointer;font-size:13px}
   button.sec{background:#21262d;color:#c9d1d9}
   #stat{font-size:12px;line-height:1.7;margin-top:10px;border-top:1px solid #30363d;padding-top:10px}
   #log{font-size:11px;color:#7d8;font-family:ui-monospace,monospace;margin-top:8px;max-height:200px;overflow:auto;white-space:pre}
-  canvas{flex:1;display:block;background:#0d1117}
+  canvas{flex:1;display:block;background:#0d1117;min-width:0}
   .dot{color:#f85149}
+  @media(max-width:640px){
+    html,body{overflow:auto}
+    #wrap{flex-direction:column;height:auto;min-height:100%}
+    #side{width:100%;flex:none;border-right:none;border-bottom:1px solid #30363d}
+    #log{max-height:120px}
+    canvas{flex:none;width:100%;height:62vh}
+  }
 </style>
 </head>
 <body>

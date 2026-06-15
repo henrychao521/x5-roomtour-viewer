@@ -39,6 +39,9 @@
   .bar:hover .lab span:first-child{color:var(--hot)}
   .note{font-size:11px;color:#6e7681;line-height:1.6;margin-top:12px}
   .links{font-size:12px;line-height:2}
+  .tdcard{margin-top:18px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start}
+  .tdcard img{max-height:440px;border-radius:6px;background:#fff;max-width:100%}
+  @media(max-width:640px){ .tdcard{grid-template-columns:1fr} .tdcard img{max-height:none;width:100%;justify-self:center} }
 </style>
 </head>
 <body>
@@ -60,8 +63,8 @@
     <a href="assets/lt4_week_topdown.png" target="_blank"><button>🛰 原始俯視熱區 ↗</button></a>
   </div>
 
-  <div class="card" style="margin-top:18px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start">
-    <img src="assets/lt4_flow_topdown.png" alt="校準頂視人流圖" style="max-height:440px;border-radius:6px;background:#fff">
+  <div class="card tdcard">
+    <img src="assets/lt4_flow_topdown.png" alt="校準頂視人流圖">
     <div>
       <h2>校準頂視圖（度量級）</h2>
       <p class="note">這是用你提供的安裝資訊重建的<b>度量級頂視人流圖</b>：天花板 360 相機<b>正下方 = 房間中央(nadir)</b>；方位以<b>投影幕在上牆短邊</b>錨定；徑向用物理模型 <b>r = 天花板高(3.1m) ÷ tan(俯角)</b> 還原，取代先前線性投影造成的失真。室內 <b>6.5 × 9.9 m</b>（T8 燈管校尺）。</p>
