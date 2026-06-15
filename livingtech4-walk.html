@@ -81,8 +81,9 @@ function blocked(x,z){
 // ---- 場景串流下載（真實進度條）→ blob → gsplat ----
 const fill=document.getElementById('fill'), pct=document.getElementById('pct');
 const tip=document.getElementById('enterTip');
+const PLYSRC = new URLSearchParams(location.search).get('ply') || 'assets/livingtech4.compressed.ply';
 async function loadScene(){
-  const res = await fetch('assets/livingtech4.compressed.ply');
+  const res = await fetch(PLYSRC);
   const total = +res.headers.get('Content-Length')||24011404;
   const reader = res.body.getReader(); const chunks=[]; let got=0;
   while(true){
