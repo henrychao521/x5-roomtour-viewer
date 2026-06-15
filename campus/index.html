@@ -31,6 +31,9 @@
 </style>
 </head>
 <body>
+<div id="touchhint" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99998;background:rgba(11,14,20,.92);color:#e6edf3;border:1px solid #30363d;padding:9px 16px;border-radius:20px;font:600 13px -apple-system,'PingFang TC',sans-serif;display:none;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.45);max-width:90vw;text-align:center;transition:opacity .45s">👆 點左側切換樓層與場景</div>
+<script>(function(){var f=location.search.indexOf("hint=1")>=0;if(f||matchMedia("(pointer:coarse)").matches||("ontouchstart" in window)){var h=document.getElementById("touchhint");if(!h)return;h.style.display="block";var hide=function(){h.style.opacity="0";setTimeout(function(){h.style.display="none"},450);};setTimeout(hide,4500);window.addEventListener("touchstart",hide,{once:true,passive:true});}})();</script>
+
 <canvas id="c"></canvas>
 <div id="panel"><a id="homebar" href="../index.html" style="display:inline-block;color:#8b97a7;font-size:12px;text-decoration:none;margin-bottom:8px">← X5 RoomTour</a><h1>🏫 校園數位孿生</h1><p class="hint">多樓層 / 多場景容器（雛形）<br>場景由 campus.json 定義，新拍的房間直接 append。</p><div id="floors"></div></div>
 <div id="stack"></div>

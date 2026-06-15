@@ -17,6 +17,9 @@
 </style>
 </head>
 <body>
+<div id="touchhint" style="position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:99998;background:rgba(11,14,20,.92);color:#e6edf3;border:1px solid #30363d;padding:9px 16px;border-radius:20px;font:600 13px -apple-system,'PingFang TC',sans-serif;display:none;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.45);max-width:90vw;text-align:center;transition:opacity .45s">👆 點上方按鈕切換場景 · 拖曳看四周</div>
+<script>(function(){var f=location.search.indexOf("hint=1")>=0;if(f||matchMedia("(pointer:coarse)").matches||("ontouchstart" in window)){var h=document.getElementById("touchhint");if(!h)return;h.style.display="block";var hide=function(){h.style.opacity="0";setTimeout(function(){h.style.display="none"},450);};setTimeout(hide,4500);window.addEventListener("touchstart",hide,{once:true,passive:true});}})();</script>
+
 <a href="index.html" id="homebar" style="position:fixed;top:12px;right:12px;z-index:99999;background:rgba(11,14,20,.82);color:#e6edf3;border:1px solid #232a36;padding:7px 13px;border-radius:9px;font:700 13px -apple-system,'PingFang TC',sans-serif;text-decoration:none;backdrop-filter:blur(8px)">← X5 RoomTour</a>
 <canvas id="c"></canvas>
 <div id="pick"></div>
