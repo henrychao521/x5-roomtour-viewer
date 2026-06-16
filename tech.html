@@ -1,0 +1,178 @@
+<!doctype html><html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>技術文件 — X5 RoomTour 3DGS 流水線</title>
+<style>
+:root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--ink:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--acc2:#33b1ff;--ok:#3fb950;--warn:#e3b341}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui;line-height:1.75}
+a{color:var(--acc2);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:960px;margin:0 auto;padding:0 18px}
+nav{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:52px}
+nav .home{font-size:13px;color:var(--mut)} nav .home:hover{color:var(--ink)}
+nav .toc{display:flex;gap:14px;font-size:12.5px;overflow-x:auto}
+header{padding:44px 0 24px;text-align:center;background:radial-gradient(900px 320px at 50% -90px,rgba(255,122,24,.15),transparent)}
+header h1{font-size:30px;margin:0 0 8px} header p{color:var(--mut);max-width:640px;margin:0 auto}
+h2{font-size:21px;margin:42px 0 8px;padding-top:8px;border-top:1px solid var(--line)} h2 .n{color:var(--acc);font-weight:800;margin-right:8px}
+h3{font-size:16px;margin:20px 0 6px;color:var(--acc2)}
+p,li{font-size:14.5px} .mut{color:var(--mut)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0;justify-content:center}
+.flow .b{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12.5px;text-align:center;line-height:1.4}
+.flow .b b{color:var(--acc2)} .flow .ar{color:var(--acc);font-weight:800}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--bg2);color:var(--mut);font-weight:650} td code,p code,li code{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:1px 6px;font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+.note{border-left:3px solid var(--acc2);padding:8px 14px;margin:12px 0;background:var(--bg2);border-radius:0 8px 8px 0;font-size:13.5px}
+.warn{border-left-color:var(--warn)} .ok{border-left-color:var(--ok)}
+.warn b{color:var(--warn)} .ok b{color:var(--ok)}
+pre{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:12px;overflow-x:auto;font-size:12px}
+.refs{columns:2;column-gap:24px} .refs a{display:block;margin:6px 0;font-size:13px;break-inside:avoid}
+.refs .cat{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:10px;break-after:avoid}
+@media(max-width:680px){.refs{columns:1}.flow{flex-direction:column}
+  table{display:block;overflow-x:auto;font-size:12px} th,td{min-width:90px}
+  .toc{max-width:60vw}}
+footer{color:var(--mut);font-size:12px;text-align:center;margin:50px 0;border-top:1px solid var(--line);padding-top:18px}
+.kbd{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:11px;color:var(--mut)}
+</style></head><body>
+<nav><div class="wrap">
+<a class="home" href="index.html">← X5 RoomTour</a>
+<div class="toc"><a href="#arch">架構</a><a href="#p3">去人</a><a href="#p4">COLMAP</a><a href="#p5">Brush</a><a href="#p6">去霧</a><a href="#p7">量測</a><a href="#p8">部署</a><a href="#p9">人流</a><a href="#lessons">踩坑</a><a href="#refs">參考</a></div>
+</div></nav>
+
+<header><div class="wrap"><h1>🛠 技術文件 — 3DGS 室內重建流水線</h1>
+<p>用一支 Insta360 X5 360° 影片，在 <b>Apple Silicon（無 CUDA）</b>上重建可即時走動的 3D 高斯潑濺空間。本頁說明完整架構、各階段調教參數與踩坑。</p></div></header>
+
+<main class="wrap">
+
+<h2 id="arch"><span class="n">A</span>架構總覽</h2>
+<div class="flow">
+<div class="b">📹 <b>Insta360 X5</b><br>360° 影片</div><span class="ar">→</span>
+<div class="b"><b>Insta360 Studio</b><br>FlowState 縫合<br>8K equirect</div><span class="ar">→</span>
+<div class="b"><b>ffmpeg v360</b><br>去全景→6 yaw<br>+ 去人篩選</div><span class="ar">→</span>
+<div class="b"><b>COLMAP</b><br>SfM 位姿<br>(SiftGPU)</div><span class="ar">→</span>
+<div class="b"><b>Brush</b><br>3DGS 訓練<br>(wgpu/Metal)</div><span class="ar">→</span>
+<div class="b"><b>裁切+清理</b><br>去霧</div><span class="ar">→</span>
+<div class="b"><b>壓縮/SOG</b><br>→ PlayCanvas<br>瀏覽器 viewer</div>
+</div>
+<p class="mut">技術棧：全程 Apple Silicon（M4 Max），無 NVIDIA/CUDA。COLMAP 用 OpenGL SiftGPU、Brush 用 Rust/wgpu(Metal)。輸出走 GitHub Pages 靜態託管。3DGS 為 <b>任意尺度</b>，另用參考物標定公尺。</p>
+
+<h2 id="p3"><span class="n">①②③</span>拍攝 · 縫合 · 去全景去人</h2>
+<p>X5 拍 360°，Insta360 Studio 用 FlowState 陀螺儀穩定縫合成 8K 等距柱狀（equirect）。再用 ffmpeg <code>v360</code> 把全景投成 <b>6 個 yaw 方向的透視圖</b>（0/60/120/180/240/300°），給 COLMAP 當一般針孔相機照片。</p>
+<h3>去人篩選（<code>extract_person_aware.py</code>）</h3>
+<p>拍攝者會入鏡 → 鬼影飄絲，更糟的是<b>抑制 Brush 緻密化</b>（見踩坑①）。用 mediapipe 偵測每張透視圖的人物，bbox 佔比超門檻就丟棄。</p>
+<table><tr><th>參數</th><th>值</th><th>說明</th></tr>
+<tr><td><code>area_thresh</code></td><td><b>0.05</b></td><td>人物 bbox 佔畫面 &gt;5% 即丟該視角</td></tr>
+<tr><td>偵測模型</td><td>efficientdet_lite0</td><td>mediapipe，person 類；全景條另用 5 切片偵測</td></tr>
+<tr><td>實測丟棄率</td><td>24–26%</td><td>工坊 234/960、家政 192/720</td></tr></table>
+
+<h2 id="p4"><span class="n">④</span>SfM 位姿 — COLMAP（Apple Silicon GPU）</h2>
+<p>COLMAP 的 SiftGPU 走 <b>OpenGL</b>，在 Mac 可用、比 CPU 快約 25×。注意 4.0.4 後旗標改名。</p>
+<pre>colmap feature_extractor --database_path db.db --image_path images \
+  --ImageReader.camera_model PINHOLE --ImageReader.single_camera 1 --FeatureExtraction.use_gpu 1
+colmap exhaustive_matcher --database_path db.db --FeatureMatching.use_gpu 1
+colmap mapper --database_path db.db --image_path images --output_path sparse
+# CPU 配對需 --SiftMatching.cpu_brute_force_matcher 1</pre>
+<table><tr><th>項</th><th>說明</th></tr>
+<tr><td>相機模型</td><td>PINHOLE + single_camera（同機去全景，內參一致）</td></tr>
+<tr><td>碎模型</td><td>mapper 可能分裂成多個 sparse/N → <b>自動挑註冊張數最多的當 sparse/0</b></td></tr>
+<tr><td>實測品質</td><td>家政 522/528 註冊、平均重投影 0.98px（次像素）</td></tr></table>
+<div class="note warn"><b>⚠ GPU 爭用陷阱</b>：Insta360 Studio 縫合或瀏覽器 PlayCanvas 渲染會搶走 Metal/GPU → COLMAP SiftGPU 靜默退回 CPU（CPU% 飆到 ~1100%、每 block 從 8 秒變 8 分鐘）。配對期間勿同時開這些。</div>
+
+<h2 id="p5"><span class="n">⑤</span>3DGS 訓練 — Brush</h2>
+<p>Brush 是 Rust/wgpu 跨平台 3DGS 訓練器，在 Apple Silicon 用 Metal。</p>
+<pre>brush colmap/ --total-steps 20000 --export-every 20000 \
+  --export-path out/ --export-name "scene_{iter}.ply" \
+  --max-resolution 1600 --max-splats 2000000</pre>
+<table><tr><th>參數</th><th>值</th><th>說明</th></tr>
+<tr><td><code>--total-steps</code></td><td>20000</td><td>單室內場景足夠</td></tr>
+<tr><td><code>--max-resolution</code></td><td>1600</td><td>訓練影像長邊上限；拉高更銳但更慢</td></tr>
+<tr><td><code>--max-splats</code></td><td>2,000,000</td><td>高斯數上限</td></tr>
+<tr><td>growth 旗標</td><td>預設</td><td><code>--growth-grad-threshold</code>/<code>--growth-select-fraction</code>/<code>--growth-stop-iter</code>/<code>--refine-every</code>。<b>去人資料用預設 growth 即可滿載；激進 growth 反而長針</b></td></tr></table>
+<div class="note ok"><b>✓ 重大發現</b>：薄資料(少視角)時調訓練參數救不了品質；真正關鍵是<b>輸入覆蓋</b>。去掉拍攝者入鏡視角後，Brush 才能正常緻密化（33萬→192萬高斯），詳見踩坑①。</div>
+
+<h2 id="p6"><span class="n">⑥</span>裁切 · 清理 · 去霧</h2>
+<h3>裁切到室內（<code>crop_splat.py</code>）</h3>
+<p>用 COLMAP 相機軌跡（都在室內）的 5–95% 範圍 + margin 定室內 bbox，砍窗外/遠處離群高斯。<code>margin_xz=2.0</code>、<code>floor_pad=3.0</code>（高度放寬到地板~天花板）。</p>
+<h3>清飄絲（<code>clean_floaters.py</code>）— 主力</h3>
+<p>三準則刪「飄浮垃圾」而<b>不碰表面、不變糊</b>：</p>
+<table><tr><th>準則</th><th>參數</th><th>作用</th></tr>
+<tr><td>空間孤立 (kNN)</td><td><code>--knn-pct 95~99.5</code></td><td>到第 8 鄰居距離超百分位 → 懸空 floater【主力】</td></tr>
+<tr><td>異常巨大</td><td><code>--scale-pct 96.5~99.7</code></td><td>超大模糊高斯（角落霧）</td></tr>
+<tr><td>近乎隱形</td><td><code>--opacity 0.01~0.06</code></td><td>低不透明度霾</td></tr></table>
+<div class="note warn"><b>⚠ opacity 陷阱</b>：Brush 靠<b>大量低 alpha 高斯疊色</b>達成平滑，中位 opacity 僅 ~0.05。若用 SuperSplat 慣用的 0.2–0.3 門檻會誤殺 9 成、畫面變稀疏雜亂。實測 0.06 已偏激進。</div>
+<h3>去針 vs 去霧的取捨</h3>
+<p>「針狀飄絲」與「銳利表面」用的<b>是同類異向高斯</b>（此場景 61% 高斯 aniso&gt;6）。所以：</p>
+<table><tr><th>手法</th><th>效果</th><th>結論</th></tr>
+<tr><td>夾異向比 (<code>deneedle</code>)</td><td>去條紋但把表面也弄圓 → 糊</td><td>夾「最小尺度×K」對針+煎餅都有效，但 K 太小必糊</td></tr>
+<tr><td>天花板剔除</td><td>天花板變黑空洞</td><td>過度，棄用</td></tr>
+<tr><td><b>統計離群清理</b>(clean_floaters 較狠百分位)</td><td>保留密度與銳利、清飄絲</td><td><b>最佳平衡</b></td></tr></table>
+<p class="mut">極低掠射角的地板條紋是 3DGS 通病（銳利表面靠異向高斯，全削平就糊），後處理無解，需重建層改善。</p>
+
+<h2 id="p7"><span class="n">⑦</span>量測化 — 真實公尺</h2>
+<p>SfM/3DGS 為任意尺度。用畫面中<b>已知尺寸的參考物</b>反推公尺比例 k。</p>
+<table><tr><th>項</th><th>值</th><th>說明</th></tr>
+<tr><td>參考物</td><td>T8 日光燈管 4ft = <b>1.22m</b></td><td>全球標準，天花板亮帶投影量長</td></tr>
+<tr><td>比例</td><td><code>k = 1.22 / 燈管長(場景單位)</code></td><td>工坊 k=0.818、家政 k=0.892 m/單位</td></tr>
+<tr><td>產出</td><td>室內尺寸、家具足跡、建築平面圖</td><td><code>measure_space.py</code> / <code>build_arch_plan.py</code></td></tr></table>
+<div class="note"><b>更準的路</b>：iPhone LiDAR（Record3D）給真實公尺深度，可取代燈管 proxy；或用 RTAB-Map LiDAR SLAM 對齊樓層。</div>
+
+<h2 id="p8"><span class="n">⑧</span>部署 — 瀏覽器即時 viewer</h2>
+<table><tr><th>項</th><th>說明</th></tr>
+<tr><td>壓縮格式</td><td><code>splat-transform -H 0</code>（去球諧 SH、量化）→ 12–24MB，載入快。實測保留 SH 大 3.8× 但擴散光照下無可見差</td></tr>
+<tr><td>環景 orbit</td><td>SuperSplat（PlayCanvas）內嵌；俯視預設角會曝露地板霧</td></tr>
+<tr><td>第一人稱行走</td><td>PlayCanvas 自寫 viewer：WASD+pointer lock、手機搖桿、串流進度條</td></tr>
+<tr><td>座標</td><td>3DGS 為 COLMAP <b>y-down</b> → splat 繞 Z 轉 180°，世界=(-x,-y,z)</td></tr>
+<tr><td>碰撞</td><td><code>splat_density_collider.py</code> 從高斯密度抽佔據格（voxel 0.15、腿/頭雙層），不經 mesh</td></tr>
+<tr><td>常數</td><td><code>FLOOR_Y</code>(地板)、<code>EYE</code>(眼高)、<code>SPAWN</code>(出生點空格)，依各重建尺度設定</td></tr></table>
+<div class="note warn"><b>⚠ 地板偵測坑</b>：多桌面房間，自動地板偵測會把<b>桌面誤當地板</b>（相機就頂到天花板）。用 <code>floor_override</code> 指定真地板（最大 y 的大平面，up=−y）。</div>
+
+<h2 id="p9"><span class="n">⑨</span>室內人流分析（天花板 360 相機）</h2>
+<p>天花板吊掛 360 相機（j5create），輸出 1920×248 全景條：x=方位角(0–360°)、腳部 y=徑向距離。mediapipe 切片偵測人物。</p>
+<table><tr><th>項</th><th>說明</th></tr>
+<tr><td>偵測</td><td>efficientdet_lite0 + 5 切片(overlap 0.2)，全景條放大後偵測</td></tr>
+<tr><td>取樣</td><td>58 段全時段(每小時1段×6天)、fps 0.2、共 9,618 偵測</td></tr>
+<tr><td>遠端抽幀</td><td>Pi 端 ffmpeg 抽幀→只傳小 JPEG(12MB vs 影片 150MB)，連奇數時段都拿得到</td></tr>
+<tr><td>呈現</td><td><b>人流直接疊回相機自身全景影像＝零投影失真</b>（主視圖）</td></tr>
+<tr><td>度量級頂視</td><td>需 nadir(相機正下方)+方位錨定(投影幕牆)；徑向 r=天花板高÷tan(俯角)；受魚眼解析限制僅參考</td></tr></table>
+<div class="note warn"><b>⚠ 易踩</b>：天花板相機與 X5 是兩組不同拍攝、無共同測量基準 → 不可靠的度量級套圖會「極度失真」。零失真法是疊回相機自身影像。</div>
+
+<h2 id="lessons"><span class="n">★</span>關鍵發現與踩坑彙整</h2>
+<div class="card">
+<p><b>① 去人 → 緻密化滿載（最大發現）</b><br>走動拍攝者的視角會產生<b>矛盾梯度，抑制 Brush 緻密化</b>。移除含人視角後，高斯數從 33萬暴增到 192萬、自然清晰，勝過任何訓練參數調整。</p>
+<p><b>② GPU 爭用 → COLMAP 退 CPU</b><br>Insta360 Studio / 瀏覽器 WebGL 搶 Metal/GPU，COLMAP SiftGPU(OpenGL) 靜默退 CPU（1100% CPU、慢 60×）。配對期間淨空 GPU。</p>
+<p><b>③ clean_floaters opacity 陷阱</b><br>Brush 中位 opacity ~0.05，靠低 alpha 疊色平滑。用 SuperSplat 的 0.2–0.3 門檻會殺 9 成 → 稀疏雜亂。</p>
+<p><b>④ 去霧張力</b><br>銳利表面靠異向高斯；夾異向去條紋＝變糊、剔天花板＝變黑、狠刪＝雜亂。最佳＝<b>溫和統計離群清理、保留密度</b>。後處理改不了極掠射角地板條紋（重建層才行）。</p>
+<p><b>⑤ 尺度任意</b><br>SfM/3DGS 無絕對尺度。T8 燈管(1.22m)當 proxy；LiDAR 給真實公尺。</p>
+<p><b>⑥ COLMAP 碎模型</b><br>mapper 常分裂多 sub-model，務必自動挑註冊最多者當 sparse/0。</p>
+<p><b>⑦ 還原優於過度優化</b><br>多輪「更狠去霧」反而越改越糟；全密度的輕清理版最平滑好看。版控保留好版本可隨時還原。</p>
+</div>
+
+<h2 id="refs"><span class="n">📚</span>參考文件</h2>
+<div class="refs">
+<div class="cat">3DGS 核心</div>
+<a href="https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/" target="_blank">▸ 3D Gaussian Splatting（Kerbl 等, SIGGRAPH 2023）— INRIA 專案頁</a>
+<a href="https://arxiv.org/abs/2308.04079" target="_blank">▸ arXiv:2308.04079 — 論文全文＋程式碼</a>
+<a href="https://github.com/MrNeRF/awesome-3D-gaussian-splatting" target="_blank">▸ awesome-3D-gaussian-splatting — 總彙整（入門必看）</a>
+<div class="cat">流水線工具</div>
+<a href="https://github.com/ArthurBrussee/brush" target="_blank">▸ Brush — Rust/wgpu 跨平台 3DGS 訓練器（Apple Silicon）</a>
+<a href="https://colmap.github.io/" target="_blank">▸ COLMAP — SfM/MVS 開源工具</a>
+<a href="https://github.com/playcanvas/supersplat" target="_blank">▸ SuperSplat — 瀏覽器 3DGS 編輯/清理</a>
+<a href="https://www.open3d.org/docs/release/" target="_blank">▸ Open3D — 點雲處理/重建/配準</a>
+<a href="https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html" target="_blank">▸ OpenCV 單應變換 — 影像↔平面</a>
+<div class="cat">SfM / 幾何</div>
+<a href="https://demuc.de/papers/schoenberger2016sfm.pdf" target="_blank">▸ Structure-from-Motion Revisited（Schönberger & Frahm, CVPR 2016）</a>
+<a href="https://hhoppe.com/poissonrecon.pdf" target="_blank">▸ Poisson Surface Reconstruction（Kazhdan 等）</a>
+<a href="https://introlab.github.io/rtabmap/" target="_blank">▸ RTAB-Map — LiDAR/視覺 SLAM（真實尺度）</a>
+<div class="cat">大場景 3DGS</div>
+<a href="https://repo-sam.inria.fr/fungraph/hierarchical-3d-gaussians/" target="_blank">▸ Hierarchical 3DGS（Kerbl 2024, arXiv:2406.12080）</a>
+<a href="https://vastgaussian.github.io/" target="_blank">▸ VastGaussian（CVPR 2024, arXiv:2402.17427）</a>
+<a href="https://arxiv.org/abs/2404.01133" target="_blank">▸ CityGaussian — 城市級 LoD 即時渲染</a>
+<div class="cat">人體 / 化身（人流路線）</div>
+<a href="https://arxiv.org/abs/2504.12186" target="_blank">▸ CoMotion — 單相機線上多人 3D 姿態追蹤</a>
+<a href="https://shenhanqian.github.io/gaussian-avatars" target="_blank">▸ GaussianAvatars — 3D 高斯化身</a>
+<a href="https://github.com/mkocabas/awesome-human-pose-estimation" target="_blank">▸ awesome-human-pose-estimation</a>
+</div>
+
+</main>
+<footer>X5 RoomTour 技術文件 · 全程 Apple Silicon（無 CUDA）· <a href="https://github.com/henrychao521/x5-roomtour" target="_blank">原始碼與腳本</a></footer>
+</body></html>
