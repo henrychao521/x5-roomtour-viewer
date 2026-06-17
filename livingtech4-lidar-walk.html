@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>生活科技教室4（工坊）— 第一人稱行走（LiDAR 公尺校尺）</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:system-ui;touch-action:none}
+  #c{width:100%;height:100%;display:block}
+  #hud{position:fixed;left:12px;bottom:12px;color:#eee;background:rgba(0,0,0,.55);
+       padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;pointer-events:none}
+  #start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+         background:rgba(0,0,0,.75);color:#fff;cursor:pointer;flex-direction:column;gap:10px;z-index:10}
+  #start h2{margin:0}
+  #bar{width:min(420px,70vw);height:8px;background:#333;border-radius:4px;overflow:hidden}
+  #fill{height:100%;width:0%;background:#e8842c;transition:width .15s}
+  #pct{font-size:13px;color:#bbb}
+  .stick{position:fixed;left:24px;bottom:24px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08);
+         border:2px solid rgba(255,255,255,.25);display:none;z-index:6}
+  .knob{position:absolute;left:50%;top:50%;width:48px;height:48px;border-radius:50%;
+        background:rgba(255,255,255,.35);transform:translate(-50%,-50%)}
+  @media (pointer:coarse){ #hud{display:none} }
+</style>
+</head>
+<body>
+<a href="index.html" id="homebar" style="position:fixed;top:12px;right:12px;z-index:99999;background:rgba(11,14,20,.82);color:#e6edf3;border:1px solid #232a36;padding:7px 13px;border-radius:9px;font:700 13px -apple-system,'PingFang TC',sans-serif;text-decoration:none;backdrop-filter:blur(8px)">← X5 RoomTour</a>
+<canvas id="c"></canvas>
+<div id="hud">🖱 滑鼠視角｜WASD 行走｜Shift 快走｜公尺尺度(LiDAR 校正)：桌擋身、走道可過｜Esc 釋放</div>
+<div id="stickL" class="stick"><div class="knob" id="knobL"></div></div>
+<div id="start">
+  <h2>生活科技教室4（工坊）· RoomTour</h2>
+  <div id="pct">準備下載場景…</div>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="enterTip" style="display:none">點擊進入（電腦：滑鼠+WASD；手機：左搖桿走、右半屏拖視角）</div>
+</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+
+// === LiDAR 公尺校尺：場景以 Sim3 對齊到 RTAB-Map 公尺雲(scale 1.225)，再轉 Y-up ===
+// splat entity 套 scale/quat/position；以下參數皆為「公尺」
+const XF = { scale:1.22484, quat:[0.90643,-0.03748,-0.41975,-0.02803],
+             pos:[3.645,0.185,4.144] };
+const FLOOR_Y = -0.442, EYE = 1.0, RADIUS = 0.15, SPAWN = [3.533,3.752];
+const SPEED = 1.6, SPRINT = 2.8;   // m/s
+
+const canvas = document.getElementById('c');
+const app = new pc.Application(canvas, {
+  mouse: new pc.Mouse(canvas), keyboard: new pc.Keyboard(window),
+  graphicsDeviceOptions: { antialias: false, xrCompatible: true, preserveDrawingBuffer: true }
+});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize', () => app.resizeCanvas());
+app.start(); window.__app=app;
+
+const cam = new pc.Entity('cam');
+cam.addComponent('camera', { clearColor: new pc.Color(0.06,0.06,0.07), fov: 75, nearClip: 0.04, farClip: 100 });
+cam.setPosition(SPAWN[0], FLOOR_Y + EYE, SPAWN[1]);
+app.root.addChild(cam);
+
+// ---- 佔據格（雙層；公尺 Y-up 世界座標，與 splat 變換同框）----
+let legs=null, head=null, gridO=null, vox=0.15;
+fetch('assets/lt4_lidar_occupancy.json').then(r=>r.json()).then(j=>{
+  legs=j.occupied_legs; head=j.occupied_head;
+  gridO=j.grid_origin; vox=j.voxel;
+});
+function cellHit(g,ox,oz){               // 直接映射(世界=佔據格座標)
+  const ix=Math.floor((ox-gridO[0])/vox), iz=Math.floor((oz-gridO[2])/vox);
+  if(ix<0||iz<0||ix>=g.length||iz>=g[0].length) return true;   // 界外=牆
+  return !!g[ix][iz];
+}
+function blocked(x,z){
+  if(!legs) return false;
+  for(const [dx,dz] of [[0,0],[RADIUS,0],[-RADIUS,0],[0,RADIUS],[0,-RADIUS]]){
+    if(cellHit(legs,x+dx,z+dz)||cellHit(head,x+dx,z+dz)) return true;
+  }
+  return false;
+}
+
+// ---- 場景串流下載 → blob → gsplat ----
+const fill=document.getElementById('fill'), pct=document.getElementById('pct');
+const tip=document.getElementById('enterTip');
+async function loadScene(){
+  const res = await fetch('assets/lt4_lidar_walk.compressed.ply');
+  const total = +res.headers.get('Content-Length')||18000000;
+  const reader = res.body.getReader(); const chunks=[]; let got=0;
+  while(true){
+    const {done,value}=await reader.read(); if(done) break;
+    chunks.push(value); got+=value.length;
+    const p=Math.min(100,Math.round(got/total*100));
+    fill.style.width=p+'%'; pct.textContent=`下載場景 ${p}%（${(got/1048576).toFixed(1)} MB）`;
+  }
+  const blob=new Blob(chunks); const url=URL.createObjectURL(blob);
+  pct.textContent='解碼中…';
+  const asset=new pc.Asset('lt4walk','gsplat',{url, filename:'walk.compressed.ply'});
+  asset.on('load',()=>{
+    const e=new pc.Entity('splat');
+    e.addComponent('gsplat',{asset});
+    e.setLocalScale(XF.scale, XF.scale, XF.scale);
+    e.setLocalRotation(new pc.Quat(XF.quat[0],XF.quat[1],XF.quat[2],XF.quat[3]));
+    e.setLocalPosition(XF.pos[0],XF.pos[1],XF.pos[2]);
+    app.root.addChild(e);
+    pct.textContent='完成'; tip.style.display='block';
+    if(navigator.userAgent.match(/Mobi|Android|iPhone|iPad/)) document.getElementById('stickL').style.display='block';
+  });
+  asset.on('error',err=>pct.textContent='載入失敗：'+err);
+  app.assets.add(asset); app.assets.load(asset);
+}
+loadScene();
+
+// ---- 視角 ----
+let yaw=0,pitch=0,locked=false;
+const start=document.getElementById('start');
+start.addEventListener('click',()=>{
+  if(tip.style.display==='none') return;
+  start.style.display='none';
+  if(matchMedia('(pointer:fine)').matches) canvas.requestPointerLock();
+});
+document.addEventListener('pointerlockchange',()=>{
+  locked=document.pointerLockElement===canvas;
+  if(!locked && tip.style.display!=='none') start.style.display='flex';
+});
+document.addEventListener('mousemove',ev=>{
+  if(!locked) return;
+  yaw-=ev.movementX*0.12; pitch=Math.max(-85,Math.min(85,pitch-ev.movementY*0.12));
+});
+
+// ---- 手機：左搖桿走、右半屏拖視角 ----
+const stickEl=document.getElementById('stickL'), knob=document.getElementById('knobL');
+let stickVec=[0,0], stickId=null, lookId=null, lastLook=null;
+function placeStick(x,y){ stickEl.style.left=(x-55)+'px'; stickEl.style.top=(y-55)+'px'; }
+canvas.addEventListener('touchstart',e=>{
+  for(const t of e.changedTouches){
+    if(t.clientX<innerWidth/2 && stickId===null){
+      stickId=t.identifier; placeStick(t.clientX,t.clientY); stickEl.style.display='block';
+    } else if(lookId===null){ lookId=t.identifier; lastLook=[t.clientX,t.clientY]; }
+  }
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId){
+      const r=stickEl.getBoundingClientRect();
+      let dx=t.clientX-(r.left+55), dy=t.clientY-(r.top+55);
+      const len=Math.hypot(dx,dy), max=42;
+      if(len>max){dx*=max/len;dy*=max/len;}
+      knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+      stickVec=[dx/max,dy/max];
+    } else if(t.identifier===lookId && lastLook){
+      yaw-=(t.clientX-lastLook[0])*0.3;
+      pitch=Math.max(-85,Math.min(85,pitch-(t.clientY-lastLook[1])*0.3));
+      lastLook=[t.clientX,t.clientY];
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId){stickId=null;stickVec=[0,0];knob.style.transform='translate(-50%,-50%)';}
+    if(t.identifier===lookId){lookId=null;lastLook=null;}
+  }
+});
+
+// ---- 移動：慣性 + head bob + 雙層碰撞 ----
+let vel=[0,0], bobT=0;
+window.DEBUG={cam, blocked:(x,z)=>blocked(x,z), pos:()=>cam.getPosition().toString()};
+app.on('update',dt=>{
+  cam.setEulerAngles(pitch,yaw,0);
+  const kb=app.keyboard;
+  let fx=stickVec[0], fz=-stickVec[1];
+  if(kb.isPressed(pc.KEY_W)||kb.isPressed(pc.KEY_UP))fz+=1;
+  if(kb.isPressed(pc.KEY_S)||kb.isPressed(pc.KEY_DOWN))fz-=1;
+  if(kb.isPressed(pc.KEY_A)||kb.isPressed(pc.KEY_LEFT))fx-=1;
+  if(kb.isPressed(pc.KEY_D)||kb.isPressed(pc.KEY_RIGHT))fx+=1;
+  const sp=kb.isPressed(pc.KEY_SHIFT)?SPRINT:SPEED;
+  const fwd=cam.forward,right=cam.right;
+  let tx=fwd.x*fz+right.x*fx, tz=fwd.z*fz+right.z*fx;
+  const tl=Math.hypot(tx,tz);
+  if(tl>0){tx=tx/tl*sp;tz=tz/tl*sp;}
+  const k=(tl>0?8:10)*dt;
+  vel[0]+=(tx-vel[0])*Math.min(1,k); vel[1]+=(tz-vel[1])*Math.min(1,k);
+  const mx=vel[0]*dt, mz=vel[1]*dt;
+  if(Math.abs(mx)+Math.abs(mz)<1e-6) return;
+  const p=cam.getPosition();
+  let nx=p.x, nz=p.z;
+  if(!blocked(p.x+mx,p.z+mz)){nx=p.x+mx;nz=p.z+mz;}
+  else if(!blocked(p.x+mx,p.z)){nx=p.x+mx;vel[1]=0;}
+  else if(!blocked(p.x,p.z+mz)){nz=p.z+mz;vel[0]=0;}
+  else {vel=[0,0];}
+  const moving=Math.hypot(vel[0],vel[1]);
+  bobT+=dt*(moving>0.1?moving*5.5:0);
+  const bob=moving>0.1?Math.sin(bobT)*0.018:0;
+  cam.setPosition(nx,FLOOR_Y+EYE+bob,nz);
+});
+</script>
+</body>
+</html>
