@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>家政教室 · 光線時光機</title>
+<style>
+  :root{--bg:#0b0e14;--card:#141a23;--line:#222b38;--ink:#e6edf3;--mut:#8b97a7;--acc:#ffd34e;--blue:#5db8ff;--teal:#9fe8d0}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.55}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  h1{font-size:20px;margin:0 0 2px}.sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}@media(max-width:840px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  canvas{display:block;width:100%;border-radius:8px;background:#070a0f}
+  #room{margin-top:12px}
+  .ctl{margin:9px 0}.ctl label{font-size:13px;color:var(--mut);display:flex;justify-content:space-between}
+  .ctl input[type=range]{width:100%}.v{color:var(--acc);font-variant-numeric:tabular-nums}
+  .big input[type=range]{height:26px}.big label{font-size:15px;color:var(--ink)}
+  select,input[type=date],input[type=number]{background:#0d1117;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .sum{font-size:13px;line-height:1.85}.sum b{color:#fff}
+  .pill{display:inline-block;background:#0d1117;border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--mut);cursor:pointer}
+  .warn{color:var(--acc)}.ok{color:var(--teal)}
+  .note{color:#6b7585;font-size:11.5px;margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .legend{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut);margin-top:6px}
+  .legbar{height:9px;flex:1;border-radius:5px;background:linear-gradient(90deg,#000,#3b0f70,#8c2981,#de4968,#fe9f6d,#fcfdbf)}
+</style></head>
+<body>
+<a href="index.html" style="position:fixed;top:10px;left:12px;z-index:30;background:rgba(11,14,20,.82);color:#e6edf3;border:1px solid #232a36;padding:6px 12px;border-radius:9px;font:700 12px -apple-system,'PingFang TC',sans-serif;text-decoration:none">← X5 RoomTour</a><div class="wrap">
+  <h1>🕰️ 家政教室 · 光線時光機</h1>
+  <div class="sub">拖時間，重現該時刻的<b>窗外天色</b>與<b>室內光感</b>（亮度／冷暖／陽光斑／夜間開燈），下方同步更新地板照度。LiDAR 幾何＋天文太陽位置＋日光模型驅動。</div>
+  <div class="grid">
+    <div class="card">
+      <canvas id="scene" width="720" height="430"></canvas>
+      <canvas id="room" width="720" height="300"></canvas>
+      <div class="legend">暗 <div class="legbar"></div> 亮（地板照度俯視）</div>
+    </div>
+    <div class="card">
+      <div class="ctl big"><label>🕐 時間 <span class="v" id="timeV">—</span></label><input type="range" id="time" min="0" max="1439" step="5"></div>
+      <div class="ctl"><label>日期 <span></span></label><input type="date" id="date"></div>
+      <div class="ctl"><label>窗戶朝向（羅盤°，<span class="ok">三日錄影校準≈東</span>）<span class="v" id="bearV">88</span></label><input type="range" id="bear" min="0" max="359" value="88"></div>
+      <div class="ctl row"><label style="flex:1">天氣 <select id="wx"><option value="clear">晴空</option><option value="partly">多雲</option><option value="overcast">陰天</option></select></label>
+        <label>緯<input type="number" id="lat" value="24.15" step="0.01" style="width:74px"></label>
+        <label>經<input type="number" id="lon" value="120.67" step="0.01" style="width:74px"></label></div>
+      <div class="row"><span class="pill" id="nowBtn">↻ 現在</span><span class="pill" id="playBtn">▶ 一日快轉</span></div>
+      <div class="sum" id="sum" style="margin-top:10px"></div>
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+</div>
+<script>
+const ROOM={L1:10.8,L2:9.3};
+const sc=document.getElementById('scene'),sx=sc.getContext('2d');
+const rm=document.getElementById('room'),rx=rm.getContext('2d');
+const $=id=>document.getElementById(id);
+function solarPos(lat,lon,dt,tz){
+  const N=Math.floor((dt-new Date(dt.getFullYear(),0,0))/864e5),hour=dt.getHours()+dt.getMinutes()/60;
+  const decl=23.45*Math.sin(2*Math.PI/365*(N-81)),Bx=2*Math.PI/364*(N-81),EoT=9.87*Math.sin(2*Bx)-7.53*Math.cos(Bx)-1.5*Math.sin(Bx);
+  const TC=4*(lon-15*tz)+EoT,LST=hour+TC/60,HRA=15*(LST-12),lr=lat*Math.PI/180,dr=decl*Math.PI/180,hr=HRA*Math.PI/180;
+  const el=Math.asin(Math.sin(dr)*Math.sin(lr)+Math.cos(dr)*Math.cos(lr)*Math.cos(hr))*180/Math.PI;
+  let ca=(Math.sin(dr)*Math.cos(lr)-Math.cos(dr)*Math.sin(lr)*Math.cos(hr))/Math.max(1e-6,Math.cos(el*Math.PI/180));
+  let az=Math.acos(Math.max(-1,Math.min(1,ca)))*180/Math.PI; if(HRA>0)az=360-az; return {el,az};
+}
+function daylight(el,wx){ if(el<=-0.5)return{Egh:0,Edir:0,cct:0};
+  const s=Math.sin(Math.max(0,el)*Math.PI/180); let Egh=96*s,Edir=105*s,cct=4000+2600*Math.min(1,s/0.9);
+  if(wx==='partly'){Edir*=0.5;Egh*=0.8;} if(wx==='overcast'){Edir=0;Egh*=0.45;cct=6800;} return{Egh,Edir,cct};}
+function lerp(a,b,t){return a+(b-a)*t;} function lc(a,b,t){return[lerp(a[0],b[0],t)|0,lerp(a[1],b[1],t)|0,lerp(a[2],b[2],t)|0];}
+function rgb(c){return`rgb(${c[0]},${c[1]},${c[2]})`;}
+function skyStops(el,wx){
+  let top,bot;
+  if(el>=10){top=[58,116,196];bot=[150,188,226];}
+  else if(el>=0){const t=el/10;top=lc([70,70,130],[58,116,196],t);bot=lc([250,150,80],[150,188,226],t);}
+  else if(el>=-6){const t=(el+6)/6;top=lc([35,38,80],[70,70,130],t);bot=lc([225,110,70],[250,150,80],t);}
+  else if(el>=-12){const t=(el+12)/6;top=lc([12,14,34],[35,38,80],t);bot=lc([45,42,80],[225,110,70],t);}
+  else {top=[8,10,26];bot=[16,18,42];}
+  if(wx==='overcast'){const g=v=>[(v[0]*0.5+150*0.5)|0,(v[1]*0.5+150*0.5)|0,(v[2]*0.5+155*0.5)|0];top=g(top);bot=g(bot);}
+  else if(wx==='partly'){const g=v=>[(v[0]*0.7+170*0.3)|0,(v[1]*0.7+175*0.3)|0,(v[2]*0.7+185*0.3)|0];top=g(top);bot=g(bot);}
+  return{top,bot};
+}
+function wbMul(cct){ const pts=[[3000,[1.16,1.0,0.68]],[4500,[1.07,1.0,0.86]],[5500,[1.0,1.0,1.0]],[6800,[0.9,0.97,1.13]]];
+  if(cct<=pts[0][0])return pts[0][1]; if(cct>=pts[3][0])return pts[3][1];
+  for(let i=0;i<3;i++){if(cct<=pts[i+1][0]){const t=(cct-pts[i][0])/(pts[i+1][0]-pts[i][0]);return[lerp(pts[i][1][0],pts[i+1][1][0],t),lerp(pts[i][1][1],pts[i+1][1][1],t),lerp(pts[i][1][2],pts[i+1][1][2],t)];}}}
+function tnt(base,gain,wb){return[Math.min(255,base[0]*gain*wb[0]),Math.min(255,base[1]*gain*wb[1]),Math.min(255,base[2]*gain*wb[2])].map(v=>v|0);}
+function drawScene(st){
+  const W=sc.width,H=sc.height; sx.clearRect(0,0,W,H);
+  const {el,az,Egh,Edir,cct,enters,wx}=st;
+  const sky=skyStops(el,wx);
+  const dayLit = el>-1 && Egh>3;
+  let gain,useCct;
+  if(dayLit){ gain=Math.max(0.18,Math.min(1.05,0.22+Egh/100)); useCct=cct; } else { gain=0.30; useCct=3000; }
+  const wb=wbMul(useCct);
+  const wall=tnt([198,192,180],gain,wb),ceil=tnt([224,221,216],gain*1.02,wb),floor=tnt([150,134,112],gain*0.92,wb);
+  sx.fillStyle=rgb(ceil);sx.fillRect(0,0,W,H*0.13);
+  sx.fillStyle=rgb(wall);sx.fillRect(0,H*0.13,W,H*0.65);
+  sx.fillStyle=rgb(floor);sx.fillRect(0,H*0.78,W,H*0.22);
+  const wx0=W*0.16,wy0=H*0.20,ww=W*0.68,wh=H*0.46;
+  const g=sx.createLinearGradient(0,wy0,0,wy0+wh);g.addColorStop(0,rgb(sky.top));g.addColorStop(1,rgb(sky.bot));
+  sx.fillStyle=g;sx.fillRect(wx0,wy0,ww,wh);
+  const relAz=((az-st.bear+540)%360)-180;
+  if(el>-3 && Math.abs(relAz)<95){
+    const sxp=wx0+ww*(0.5+relAz/190),syp=wy0+wh*(1-Math.max(0,Math.min(1,el/70))*0.92);
+    const sun=el>8?[255,250,235]:lc([255,160,70],[255,245,220],Math.max(0,el)/8);
+    sx.save();sx.shadowColor=rgb(sun);sx.shadowBlur=el>8?40:55;
+    sx.fillStyle=rgb(el<0?[230,230,235]:sun);sx.beginPath();sx.arc(sxp,syp,el<0?9:14,0,7);sx.fill();sx.restore();
+  }
+  sx.strokeStyle='#2b2f38';sx.lineWidth=8;sx.strokeRect(wx0,wy0,ww,wh);
+  sx.lineWidth=4;sx.beginPath();sx.moveTo(wx0+ww/2,wy0);sx.lineTo(wx0+ww/2,wy0+wh);
+  sx.moveTo(wx0,wy0+wh/2);sx.lineTo(wx0+ww,wy0+wh/2);sx.stroke();
+  if(enters && Edir>2){
+    const off=Math.max(-1,Math.min(1,relAz/70)),cxp=wx0+ww*(0.5+off*0.5);
+    const grd=sx.createRadialGradient(cxp,H*0.80,10,cxp,H*0.92,W*0.42);
+    grd.addColorStop(0,'rgba(255,228,170,'+Math.min(0.75,Edir/120)+')');grd.addColorStop(1,'rgba(255,228,170,0)');
+    sx.fillStyle=grd;sx.fillRect(0,H*0.74,W,H*0.26);
+    const gw=sx.createRadialGradient(W/2,wy0+wh,20,W/2,wy0+wh,W*0.5);
+    gw.addColorStop(0,'rgba(255,240,200,0.28)');gw.addColorStop(1,'rgba(255,240,200,0)');sx.fillStyle=gw;sx.fillRect(0,0,W,H*0.85);
+  }
+  if(!dayLit){ for(const fx of [0.3,0.7]){ const gl=sx.createRadialGradient(W*fx,H*0.05,5,W*fx,H*0.05,W*0.28);
+    gl.addColorStop(0,'rgba(255,225,170,0.5)');gl.addColorStop(1,'rgba(255,225,170,0)');sx.fillStyle=gl;sx.fillRect(0,0,W,H*0.5);} }
+  sx.fillStyle='rgba(0,0,0,.4)';sx.fillRect(0,0,W,26);
+  sx.fillStyle='#e6edf3';sx.font='14px "Noto Sans TC",sans-serif';
+  sx.fillText(`室內視角（窗戶牆）· ${$('timeV').textContent} · ${dayLit?'日光':'人工照明'}`,12,18);
+}
+function inferno(t){const s=[[0,0,4],[40,11,84],[101,21,110],[159,42,99],[212,72,66],[245,125,21],[250,193,39],[252,255,164]];
+  const f=t*(s.length-1),i=Math.floor(f),k=f-i,a=s[i],b=s[Math.min(s.length-1,i+1)];
+  return`rgb(${a[0]+(b[0]-a[0])*k|0},${a[1]+(b[1]-a[1])*k|0},${a[2]+(b[2]-a[2])*k|0})`;}
+function drawHeatmap(st){
+  const W=rm.width,H=rm.height,pad=30,rw=W-2*pad,rh=H-2*pad,nx=72,ny=30;
+  const {Egh,Edir,enters,rel,el}=st;const maxd=Math.max(ROOM.L1,ROOM.L2);
+  const pen=enters?Math.min(maxd,1.3/Math.max(0.25,Math.tan(el*Math.PI/180))):0,latoff=enters?pen*Math.tan(rel*Math.PI/180):0;
+  let maxI=Math.max(Egh*0.22,5);rx.clearRect(0,0,W,H);
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const fx=(i+0.5)/nx,fy=(j+0.5)/ny,depth=(1-fy)*ROOM.L2,lat=(fx-0.5)*ROOM.L1;
+    let I=Egh*0.22*Math.exp(-depth/(0.45*maxd)); if(enters)I+=Edir*0.62*Math.exp(-((depth-pen)**2)/0.72)*Math.exp(-((lat-latoff)**2)/1.8);
+    rx.fillStyle=inferno(Math.max(0,Math.min(1,I/maxI)));
+    rx.fillRect(Math.floor(pad+i/nx*rw),Math.floor(pad+(ny-1-j)/ny*rh),Math.ceil(rw/nx)+1,Math.ceil(rh/ny)+1);}
+  rx.strokeStyle='#9fe8d0';rx.lineWidth=2;rx.strokeRect(pad,pad,rw,rh);
+  rx.strokeStyle='#5db8ff';rx.lineWidth=6;rx.beginPath();rx.moveTo(pad,pad+rh);rx.lineTo(pad+rw,pad+rh);rx.stroke();
+  rx.fillStyle='#5db8ff';rx.font='12px sans-serif';rx.fillText('窗戶牆（地板照度俯視）',pad+6,pad+rh-7);
+}
+function dirName(az){return['北','東北','東','東南','南','西南','西','西北'][Math.round(az/45)%8];}
+function render(){
+  const d=new Date($('date').value+'T00:00');const mins=+$('time').value;d.setHours(Math.floor(mins/60),mins%60,0,0);
+  const lat=+$('lat').value,lon=+$('lon').value,bear=+$('bear').value,wx=$('wx').value;
+  $('timeV').textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');$('bearV').textContent=bear;
+  const {el,az}=solarPos(lat,lon,d,8);const {Egh,Edir,cct}=daylight(el,wx);
+  const rel=((az-bear+540)%360)-180,enters=el>3&&Math.abs(rel)<82&&Edir>1;
+  const st={el,az,Egh,Edir,cct,enters,rel,wx,bear};
+  drawScene(st);drawHeatmap(st);
+  const day=el>-1&&Egh>3;
+  $('sum').innerHTML=[
+    `<b>${$('date').value} ${$('timeV').textContent}</b>`,
+    `太陽：仰角 <b>${el.toFixed(0)}°</b>·方位 <b>${az.toFixed(0)}°</b>（${dirName(az)}）`,
+    el<=0?`<span class="warn">太陽在地平線下（夜間）</span>`:`太陽vs窗牆 <b>${rel.toFixed(0)}°</b> → ${enters?'<span class="ok">直射進入☀</span>':'<span class="warn">無直射（漫射）</span>'}`,
+    `室外照度 ≈ <b>${Egh.toFixed(0)} klux</b>　色溫 ≈ <b>${(day?cct:3000).toFixed(0)} K</b>（${day?(cct>5200?'冷白':'偏暖'):'夜·暖燈'}）`,
+    `照明：${day?(enters?'靠窗充足、深處補燈':'漫射為主、宜開燈'):'夜間，全室人工照明'}`
+  ].map(s=>'• '+s).join('<br>');
+  $('note').innerHTML='方法：LiDAR 房間 '+ROOM.L1+'×'+ROOM.L2+'m ＋天文太陽位置＋日光模型驅動「窗外天色＋室內relight」。<span class="warn">窗戶朝向</span>現假設 '+bear+'°，可拖動校正。';
+}
+let timer=null;
+function setNow(){const n=new Date();$('date').value=n.toISOString().slice(0,10);$('time').value=n.getHours()*60+n.getMinutes();render();}
+['time','bear','wx','lat','lon','date'].forEach(id=>$(id).addEventListener('input',render));
+$('nowBtn').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('playBtn').textContent='▶ 一日快轉';}setNow();};
+$('playBtn').onclick=()=>{ if(timer){clearInterval(timer);timer=null;$('playBtn').textContent='▶ 一日快轉';return;}
+  $('playBtn').textContent='⏸ 停止'; timer=setInterval(()=>{$('time').value=(+$('time').value+8)%1440;render();},60); };
+setNow();
+</script></body></html>

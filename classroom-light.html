@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>家政教室 · 光線世界模型 — X5 RoomTour</title>
+<style>
+  :root{--bg:#0d1117;--pan:#11161d;--bd:#30363d;--fg:#c9d1d9;--mut:#8b949e;--hot:#f0883e;--blue:#58a6ff;--ok:#3fb950}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"PingFang TC",sans-serif;line-height:1.7}
+  a{color:var(--blue);text-decoration:none}
+  header{padding:14px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0} header .sub{font-size:12px;color:var(--mut)}
+  .back{font-size:12px;color:var(--mut)}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
+  .lead{background:var(--pan);border:1px solid var(--bd);border-left:3px solid var(--hot);border-radius:8px;padding:14px 16px;margin-bottom:18px}
+  .lead b{color:#fff}
+  .tools{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .tools a{background:var(--hot);color:#fff;border-radius:7px;padding:9px 14px;font-weight:700;font-size:13.5px}
+  .tools a.alt{background:#21262d;color:var(--fg);border:1px solid var(--bd)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--pan);border:1px solid var(--bd);border-radius:8px;padding:14px}
+  .card h2{font-size:14px;margin:0 0 10px} .card.full{grid-column:1/-1}
+  .card img{width:100%;border-radius:6px;background:#fff;display:block}
+  .cap{font-size:11.5px;color:var(--mut);margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0}
+  th,td{border:1px solid var(--bd);padding:6px 9px;text-align:left} th{background:#161d27;color:var(--blue)}
+  td.k{color:var(--ok);font-weight:700}
+  .note{font-size:11.5px;color:#6e7681;line-height:1.6;margin-top:10px}
+  ul{margin:6px 0;padding-left:20px;font-size:13.5px} li{margin:3px 0}
+  .big{font-size:15px;color:var(--hot);font-weight:800}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← X5 RoomTour</a>
+  <h1>☀️ 家政教室 · 光線世界模型</h1>
+  <span class="sub">房間幾何 × 天文太陽位置 × 日光物理 — 模擬任一時刻「應有的自然光」</span>
+</header>
+<div class="wrap">
+
+  <div class="lead">
+    用「世界模型」推算家政教室在任一時刻的自然光狀態（地板照度、受光區、方向、色溫）。
+    核心校準成果：<b class="big">窗戶朝向 ≈ 東（約 88°）</b>，用 3 天現成錄影的室內亮度曲線配對太陽位置反推而得——
+    取代先前的假設值 126°，模擬從「假設」變成「資料校準」。
+  </div>
+
+  <div class="tools">
+    <a href="classroom-daylight.html">🕰️ 3DGS 光線時光機 — 在真實場景上拉時間改天色 ↗</a>
+    <a class="alt" href="classroom-lightsim.html">📊 2D 光線模擬器（照度熱圖）↗</a>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>① 此刻光線世界模型</h2>
+      <img src="assets/homeec_light_model.png" alt="當前光線世界模型">
+      <div class="cap">幾何（LiDAR PCA ≈10.8×9.3m、室高3.23m）＋ 太陽位置 ＋ 日光物理 → 地板照度熱圖、太陽方向、色溫</div>
+    </div>
+    <div class="card">
+      <h2>② 窗向校準：3 天亮度曲線</h2>
+      <img src="assets/homeec_3day_curves.png" alt="三日光線曲線分析">
+      <div class="cap">同一太陽仰角下，上午（太陽在東）室內均亮 <b>117</b> ≫ 下午 <b>78</b>；峰值與過曝都在上午 → 窗朝<b>東</b></div>
+    </div>
+    <div class="card full">
+      <h2>③ 三方比對（天文 × 天氣 × 攝影機）</h2>
+      <img src="assets/homeec_3source.png" alt="光線三方比對">
+      <div class="cap">三個獨立來源交叉驗證：天文（理論日光）× 天氣（雲量，open-meteo）× 攝影機（室內實測亮度/色溫，僅取數值）。傍晚一致：太陽−2°＋濃雲98%＋近全黑 → 互相印證。</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>相機實測校準（單張、純數值、不留原圖、不辨識人）</h2>
+    <table>
+      <tr><th>指標</th><th>實測</th><th>意義</th></tr>
+      <tr><td>平均亮度</td><td class="k">84 / 255</td><td>中偏暗，非被日光灌滿</td></tr>
+      <tr><td>過曝(&gt;248)</td><td class="k">0.9%</td><td>無大面積直射陽光</td></tr>
+      <tr><td>色調 R/B</td><td class="k">1.19（偏暖）</td><td>暖色人工照明為主（日光會偏冷）</td></tr>
+      <tr><td>亮度分佈</td><td class="k">天花100 &gt; 地板69</td><td>主光源在天花（燈），非側窗日光</td></tr>
+    </table>
+    <p class="note">結論：當下＝暖色人工照明為主、無大面積直射陽光，與物理模型「太陽在西、東向窗下午照不到直射」一致。</p>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>空間校準：LiDAR ↔ 3DGS 對齊</h2>
+    <img src="assets/homeec_lidar_align.png" alt="家政 LiDAR 對齊示意圖" style="max-height:420px;width:auto;max-width:100%;display:block;margin:0 auto">
+    <p class="note">3DGS 場景以 Sim3 對齊到 RTAB-Map 公尺 LiDAR 點雲（含尺度與重力定向），房間量測與光線模型的幾何皆由此而來。</p>
+  </div>
+
+  <p class="note" style="margin-top:18px">方法：① 幾何由家政 LiDAR 點雲（143 萬點）PCA 取房間矩形與窗牆；② 太陽以天文公式（赤緯＋時差＋時角）算仰角/方位；③ 晴空照度模型 ＋ 日光因子隨進深衰減 → 地板照度，太陽落在窗向可受光範圍時加直射陽光斑。<br>隱私：相機僅取整體亮度/色溫/亮區方向等數值，未檢視原圖、未辨識人、原圖已刪除。</p>
+</div>
+</body>
+</html>
