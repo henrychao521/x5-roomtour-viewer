@@ -33,14 +33,16 @@ pre{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:12px;o
   .toc{max-width:60vw}}
 footer{color:var(--mut);font-size:12px;text-align:center;margin:50px 0;border-top:1px solid var(--line);padding-top:18px}
 .kbd{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:11px;color:var(--mut)}
+h4{font-size:14.5px;margin:14px 0 4px;color:var(--ink)}
+.fig{margin:14px 0;text-align:center}.fig img{max-width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}.fig .cap{font-size:12px;color:var(--mut);margin-top:5px}
 </style></head><body>
 <nav><div class="wrap">
 <a class="home" href="index.html">← X5 RoomTour</a>
-<div class="toc"><a href="#arch">架構</a><a href="#p3">去人</a><a href="#p4">COLMAP</a><a href="#p5">Brush</a><a href="#p6">去霧</a><a href="#p7">量測</a><a href="#p8">部署</a><a href="#p9">人流</a><a href="#lessons">踩坑</a><a href="#refs">參考</a></div>
+<div class="toc"><a href="#arch">架構</a><a href="#p3">去人</a><a href="#p4">COLMAP</a><a href="#p5">Brush</a><a href="#p6">去霧</a><a href="#p7">量測</a><a href="#p8">部署</a><a href="#p9">人流</a><a href="#p10">光線</a><a href="#lessons">踩坑</a><a href="#refs">參考</a></div>
 </div></nav>
 
 <header><div class="wrap"><h1>🛠 技術文件 — 3DGS 室內重建流水線</h1>
-<p>用一支 Insta360 X5 360° 影片，在 <b>Apple Silicon（無 CUDA）</b>上重建可即時走動的 3D 高斯潑濺空間。本頁說明完整架構、各階段調教參數與踩坑。</p></div></header>
+<p>用一支 Insta360 X5 360° 影片，在 <b>Apple Silicon（無 CUDA）</b>上重建可即時走動的 3D 高斯潑濺空間。本頁說明完整架構、各階段調教參數與踩坑，並涵蓋<b>人流對位進 3DGS</b>與<b>光線世界模型</b>分析。</p></div></header>
 
 <main class="wrap">
 
@@ -134,7 +136,37 @@ colmap mapper --database_path db.db --image_path images --output_path sparse
 <tr><td>遠端抽幀</td><td>Pi 端 ffmpeg 抽幀→只傳小 JPEG(12MB vs 影片 150MB)，連奇數時段都拿得到</td></tr>
 <tr><td>呈現</td><td><b>人流直接疊回相機自身全景影像＝零投影失真</b>（主視圖）</td></tr>
 <tr><td>度量級頂視</td><td>需 nadir(相機正下方)+方位錨定(投影幕牆)；徑向 r=天花板高÷tan(俯角)；受魚眼解析限制僅參考</td></tr></table>
-<div class="note warn"><b>⚠ 易踩</b>：天花板相機與 X5 是兩組不同拍攝、無共同測量基準 → 不可靠的度量級套圖會「極度失真」。零失真法是疊回相機自身影像。</div>
+<div class="note ok"><b>✓ 已解決（更新 2026/06）</b>：原本因「天花板相機與 X5 是兩組不同拍攝、無共同基準」而僅做零失真的疊回影像；現已用 LiDAR 合成環景互相關完成<b>逐塊對位</b>，並把人流<b>對位進 3DGS 走路場景</b>（見下）。</div>
+
+<h3>人流對位進 3DGS — 逐塊對位 + 三座標框註冊</h3>
+<p>把 360 人流從「相機方位」轉成 3DGS 場景座標，分三步：</p>
+<h4>1) 方位：分段 δ(θ) 修視差</h4>
+<p>先以畫面<b>唯一</b>的藍色柱子當錨點——一整排相似綠桌會讓全域互相關產生假對位（曾誤判鏡像+312°），單一藍柱反而一點定方向。再對每方位帶做<b>局部互相關</b>（限 +50°±25°、不翻轉），得隨方位變化的偏移 δ(θ)＝<b>35–58°</b>（±11° 即真實相機與合成中心的視差）。</p>
+<div class="fig"><img src="assets/lt4_pano_align.png"><div class="cap">真實環景 ↔ LiDAR/3DGS 環景，以藍柱對齊</div></div>
+<h4>2) 徑向：幾何反推</h4>
+<p><code>r = camH(2.75m) / tan(俯角)</code>，再用 LiDAR 深度<b>夾牆</b>（人不穿牆）。方位可靠、徑向為近似（受 360 細條 1920×248 垂直視角限制）。</p>
+<h4>3) 三座標框註冊（核心）</h4>
+<table><tr><th>座標框</th><th>來源</th><th>角色</th></tr>
+<tr><td>LiDAR cloud</td><td>RTAB-Map 點雲</td><td>人流／環景／光線分析所在</td></tr>
+<tr><td>splat-local</td><td>COLMAP/Brush</td><td>viewer = XF · splat（11/10/11-bit 解碼後套 XF）</td></tr>
+<tr><td>viewer</td><td>Sim3 對齊後世界</td><td>機台座標／走路導覽所在</td></tr></table>
+<div class="note warn"><b>⚠ 陷阱</b>：splat-local ≠ LiDAR cloud 框（不同管線）。直接把 splat 的 XF 套到 cloud 會錯（機台飄到空中）。正解＝解碼 splat→XF→viewer，再把 cloud 用 <b>PCA 軸對齊 + 4 翻轉測重疊</b>註冊到 viewer（<b>重疊 0.93、scale 1.015</b>，兩雲皆公制）。</div>
+<div class="fig"><img src="assets/lt4_register_warp.png"><div class="cap">逐塊對位 前 / 後：對位後活動點落到實際工作桌列</div></div>
+<p>三框打通後，人流投進 viewer 框，做成<b>走路導覽右下角即時人流小地圖</b>（藍點＝你的位置與朝向，按 <span class="kbd">M</span> 開關；落點誤差 &lt;1px）。</p>
+
+<h2 id="p10"><span class="n">⑩</span>光線世界模型（天文 × 物理 × 攝影機）</h2>
+<p>用「世界模型」推算教室在任一時刻<b>應有的自然光</b>（地板照度、受光區、方向、色溫）：</p>
+<table><tr><th>輸入</th><th>方法</th></tr>
+<tr><td>幾何</td><td>LiDAR 點雲 PCA 取房間矩形與窗牆（家政 ≈10.8×9.3m、室高 3.23m）</td></tr>
+<tr><td>太陽</td><td>天文公式（赤緯＋時差＋時角）算仰角／方位</td></tr>
+<tr><td>日光</td><td>晴空照度模型＋日光因子隨進深衰減；太陽落在窗向可受光範圍時加直射陽光斑；估色溫</td></tr></table>
+<h4>窗向校準（用現成錄影，非即時連線）</h4>
+<p>攝影機隨身碟 3 天 354 段錄影，逐段抽 1 幀<b>只算光線統計</b>（不傳影像、不辨識人、不落地），配對太陽位置：<b>同一太陽仰角下，上午（東）室內均亮 117 ≫ 下午（西）78</b> → 窗朝<b>東（≈88°）</b>，取代舊假設 126°，模擬從「假設」變「資料校準」。</p>
+<div class="fig"><img src="assets/homeec_3day_curves.png"><div class="cap">3 天亮度曲線配對太陽位置 → 窗向≈東</div></div>
+<h4>三方比對 + 回貼 3DGS（relighting）</h4>
+<p>天文（理論日光）× 天氣（雲量 open-meteo）× 攝影機（室內實測亮度/色溫，僅取數值）三源交叉驗證一致。並把模擬光照<b>回貼到 3DGS</b>：改相機天色背景 + CSS 調色（亮度/色溫/暖暈），做成「3DGS 光線時光機」，拖時間即時改採光（家政／工坊各一）。</p>
+<div class="fig"><img src="assets/homeec_light_model.png"><div class="cap">此刻光線世界模型：地板照度熱圖、太陽方向、色溫</div></div>
+<div class="note"><b>隱私</b>：攝影機僅取整體亮度／色溫／亮區方向等數值，未檢視原圖、未辨識人、原圖已刪除；人流均為匿名統計。</div>
 
 <h2 id="lessons"><span class="n">★</span>關鍵發現與踩坑彙整</h2>
 <div class="card">
@@ -145,6 +177,9 @@ colmap mapper --database_path db.db --image_path images --output_path sparse
 <p><b>⑤ 尺度任意</b><br>SfM/3DGS 無絕對尺度。T8 燈管(1.22m)當 proxy；LiDAR 給真實公尺。</p>
 <p><b>⑥ COLMAP 碎模型</b><br>mapper 常分裂多 sub-model，務必自動挑註冊最多者當 sparse/0。</p>
 <p><b>⑦ 還原優於過度優化</b><br>多輪「更狠去霧」反而越改越糟；全密度的輕清理版最平滑好看。版控保留好版本可隨時還原。</p>
+<p><b>⑧ 對位錨點要選「獨一無二」的特徵</b><br>一整排相似綠桌讓全域互相關產生假對位（鏡像+312°）；改用畫面唯一的藍色柱子，一點就定方向。視差用窗口式局部互相關（限幅不翻轉）求出隨方位變化的 δ(θ)。</p>
+<p><b>⑨ 三座標框是跨資料整合的核心障礙</b><br>LiDAR cloud（RTAB）、splat-local（COLMAP/Brush）、viewer（Sim3）互不相同。直接套 XF 到 cloud 會錯；正解＝解碼 splat→XF→viewer，再用 PCA 把 cloud 註冊到 viewer（重疊 0.93）。</p>
+<p><b>⑩ 用現成錄影就能校準窗向</b><br>不必即時連線相機：3 天錄影逐段抽 1 幀算亮度，配對太陽位置，比較上午（東）vs 下午（西）的室內亮度，即可反推窗戶絕對朝向（≈東 88°）。隱私上只取統計值、不留原圖。</p>
 </div>
 
 <h2 id="refs"><span class="n">📚</span>參考文件</h2>
