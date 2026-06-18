@@ -72,6 +72,25 @@
     </div>
   </div>
 
+  <div class="card" style="margin-top:18px;border-color:#2c5a8a">
+    <h2>✨ 已對位進 3DGS 走路場景（度量級升級）</h2>
+    <p class="note" style="margin-top:0">先前因「天花板相機與 X5 建模是兩組不同拍攝、無共同基準點」而未做頂視套圖。現已用 <b>LiDAR 合成環景 ↔ 真實環景</b> 的逐塊互相關完成對位：</p>
+    <ul class="note" style="line-height:1.9">
+      <li><b>方位</b>：分段偏移 δ(θ)＝<b>35–58°</b>（隨方位變，修視差；以畫面唯一的藍柱錨定，58/60 方位可信、相關峰值 0.74），取代單一固定偏移。</li>
+      <li><b>徑向</b>：幾何 <b>r = 相機高(2.75m) ÷ tan(俯角)</b>，再用 LiDAR 深度夾牆。</li>
+      <li><b>3DGS 註冊</b>：解碼 splat→XF→viewer 框，LiDAR 點雲以 PCA 軸對齊註冊，<b>重疊率 0.93、scale 1.015</b>（兩雲皆公制）。</li>
+    </ul>
+    <img src="assets/lt4_register_warp.png" alt="逐塊對位 前/後" style="width:100%;border-radius:6px;margin:8px 0;background:#fff">
+    <details style="margin-top:6px"><summary class="note" style="cursor:pointer">看 LiDAR 環景 ↔ 真實環景 對位圖</summary>
+      <img src="assets/lt4_pano_align.png" alt="環景對位" style="width:100%;border-radius:6px;margin-top:8px;background:#fff"></details>
+    <a href="livingtech4-lidar-walk.html"><button class="on" style="margin-top:12px">🚶 進工坊走走看 — 右下角即時人流小地圖，邊走邊看哪裡最常有人 ↗</button></a>
+    <div class="toolbar" style="margin-top:12px">
+      <a href="assets/lt4_360_rose.png" target="_blank"><button>🧭 360° 方位玫瑰圖 ↗</button></a>
+      <a href="assets/lt4_cam1_flow.png" target="_blank"><button>📹 cam1 透視熱區（3天）↗</button></a>
+      <a href="assets/lt4_attendance.md" target="_blank"><button>📋 課堂出席摘要 ↗</button></a>
+    </div>
+  </div>
+
   <div class="cols">
     <div class="card">
       <h2>各區活動占比（方位由環景影像直接判讀）</h2>
@@ -85,7 +104,7 @@
       </div>
       <p class="note" id="note"></p>
       <h2 style="margin-top:16px">方法</h2>
-      <p class="note">天花板 360 相機的偵測本就是<b>方位角 + 影像中位置</b>，因此人流<b>直接疊回相機自身的環景影像</b>，零投影失真。房間分區（投影機/白板、示範檯、鑽床、窗…）由環景影像直接判讀標註。<br><br>註：天花板相機與 X5 建模是<b>兩組不同拍攝</b>，無共同測量基準點，故不做易失真的度量級頂視套圖；徑向遠近受魚眼解析限制僅供參考。</p>
+      <p class="note">天花板 360 相機的偵測本就是<b>方位角 + 影像中位置</b>，因此人流<b>直接疊回相機自身的環景影像</b>，零投影失真。房間分區（投影機/白板、示範檯、鑽床、窗…）由環景影像直接判讀標註。<br><br>註：天花板相機與 X5 建模原為<b>兩組不同拍攝</b>，現已用 LiDAR 合成環景互相關完成對位（見上方「已對位進 3DGS」），方位可靠、徑向為幾何近似（受魚眼解析限制）。</p>
     </div>
   </div>
 </div>
