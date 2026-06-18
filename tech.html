@@ -38,7 +38,7 @@ h4{font-size:14.5px;margin:14px 0 4px;color:var(--ink)}
 </style></head><body>
 <nav><div class="wrap">
 <a class="home" href="index.html">← X5 RoomTour</a>
-<div class="toc"><a href="#arch">架構</a><a href="#p3">去人</a><a href="#p4">COLMAP</a><a href="#p5">Brush</a><a href="#p6">去霧</a><a href="#p7">量測</a><a href="#p8">部署</a><a href="#p9">人流</a><a href="#p10">光線</a><a href="#lessons">踩坑</a><a href="#refs">參考</a></div>
+<div class="toc"><a href="#arch">架構</a><a href="#p3">去人</a><a href="#p4">COLMAP</a><a href="#p5">Brush</a><a href="#p6">去霧</a><a href="#p7">量測</a><a href="#p8">部署</a><a href="#p9">人流</a><a href="#p10">光線</a><a href="#lessons">踩坑</a><a href="#refs">參考</a><a href="#extra">測試圖</a></div>
 </div></nav>
 
 <header><div class="wrap"><h1>🛠 技術文件 — 3DGS 室內重建流水線</h1>
@@ -207,6 +207,17 @@ colmap mapper --database_path db.db --image_path images --output_path sparse
 <a href="https://shenhanqian.github.io/gaussian-avatars" target="_blank">▸ GaussianAvatars — 3D 高斯化身</a>
 <a href="https://github.com/mkocabas/awesome-human-pose-estimation" target="_blank">▸ awesome-human-pose-estimation</a>
 </div>
+
+<h2 id="extra"><span class="n">＋</span>其他測試圖片紀錄</h2>
+<p class="mut">開發／驗證過程中的中間圖，補充正文未放的步驟（多為一次性測試輸出）。</p>
+<div class="fig"><img src="assets/lt4_delta_curve.png"><div class="cap">逐塊對位偏移 δ(θ)：對每方位帶做局部互相關，得 35–58° 隨方位變化的偏移（即視差）；58/60 方位可信、相關峰值 0.74。</div></div>
+<div class="fig"><img src="assets/lt4_xf_test.png"><div class="cap">失敗的捷徑：直接把 splat 的 XF 套到 LiDAR cloud → 機台圈飄到空中，證明 splat-local ≠ cloud 框（因此才需解碼＋PCA 註冊）。</div></div>
+<div class="fig"><img src="assets/lt4_splat_decode.png"><div class="cap">解碼壓縮 splat（PlayCanvas 11/10/11-bit）→ 套 XF → viewer 框：機台座標落在設備上，驗證解碼與 XF 正確。</div></div>
+<div class="fig"><img src="assets/lt4_cloud_register.png"><div class="cap">cloud→viewer 註冊：PCA 軸對齊 ＋ 4 翻轉測重疊，兩雲疊合、重疊率 0.93、scale 1.015（皆公制）。</div></div>
+<div class="fig"><img src="assets/lt4_flowmap.png" style="max-width:420px"><div class="cap">走路導覽即時人流小地圖的底圖（viewer 框）：底＝splat 俯視、暖色＝學生常停留處（中央工作桌）。</div></div>
+<div class="fig"><img src="assets/lt4_360_rose.png"><div class="cap">工坊 360° 方位玫瑰圖：tiled-YOLO 偵測的各方位活動量分布。</div></div>
+<div class="fig"><img src="assets/lt4_cam1_flow.png"><div class="cap">工坊 cam1（schoolpi 透視視角）人流停留熱區（3 天）：與 360° 一致指向中央工作桌帶。</div></div>
+<div class="fig"><img src="assets/homeec_3source.png"><div class="cap">家政光線三方比對（天文 × 天氣 × 攝影機）：傍晚太陽 −2°＋濃雲 98%＋室內近全黑，三源一致。</div></div>
 
 </main>
 <footer>X5 RoomTour 技術文件 · 全程 Apple Silicon（無 CUDA）· <a href="https://github.com/henrychao521/x5-roomtour" target="_blank">原始碼與腳本</a></footer>
