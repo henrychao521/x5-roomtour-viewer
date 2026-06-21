@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工坊 3DGS · 電影級運鏡</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,"PingFang TC"}
+  #c{width:100%;height:100%;display:block}
+  #bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10;display:flex;gap:10px;align-items:center;
+       background:rgba(11,14,20,.82);border:1px solid #2c3a52;border-radius:12px;padding:8px 12px;backdrop-filter:blur(8px)}
+  #bar button{background:#1b2230;color:#e6edf3;border:1px solid #2c3a52;border-radius:8px;padding:7px 13px;cursor:pointer;font:600 13px system-ui,"PingFang TC"}
+  #bar button.rec{background:#b3261e;border-color:#b3261e;color:#fff}
+  #bar .st{color:#9fb2c8;font-size:12px;min-width:84px}
+  #load{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:#05070c;color:#e6edf3}
+  #fill{height:100%;width:0;background:#ffd34e} #bar2{width:min(420px,70vw);height:8px;background:#222;border-radius:4px;overflow:hidden}
+  a#home{position:fixed;top:12px;left:12px;z-index:10;color:#cfe0ff;background:rgba(11,14,20,.7);border:1px solid #2c3a52;border-radius:9px;padding:6px 12px;text-decoration:none;font:600 12px system-ui,"PingFang TC"}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<a id="home" href="index.html">← X5 RoomTour</a>
+<div id="bar">
+  <button id="play">⏸ 暫停</button>
+  <button id="rec">● 錄製一圈</button>
+  <span class="st" id="st">運鏡中</span>
+</div>
+<div id="load"><div>載入工坊 3DGS 場景…</div><div id="bar2"><div id="fill"></div></div><div id="pct" style="font-size:12px;color:#8b97a7"></div></div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+const XF={scale:1.22484,quat:[0.90643,-0.03748,-0.41975,-0.02803],pos:[3.645,0.185,4.144]};
+const FLOOR_Y=-0.442;
+const canvas=document.getElementById('c');
+const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true,preserveDrawingBuffer:true}});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize',()=>app.resizeCanvas()); app.start();
+const cam=new pc.Entity(); cam.addComponent('camera',{clearColor:new pc.Color(0.02,0.02,0.03),fov:62,nearClip:0.03,farClip:120});
+app.root.addChild(cam);
+// 運鏡：繞工坊中心慢速軌道 + 輕微升降
+const CTR=new pc.Vec3(3.5,FLOOR_Y+0.95,4.0); let R=4.2, H=FLOOR_Y+1.55;
+let t=0, playing=true;
+app.on('update',dt=>{
+  if(playing) t+=dt;
+  const a=t*0.32;                          // 角速度
+  const r=R+0.6*Math.sin(t*0.18);          // 半徑脈動
+  const px=CTR.x+r*Math.cos(a), pz=CTR.z+r*Math.sin(a), py=H+0.22*Math.sin(t*0.5);
+  cam.setPosition(px,py,pz); cam.lookAt(CTR.x,CTR.y,CTR.z);
+});
+document.getElementById('play').onclick=e=>{playing=!playing;e.target.textContent=playing?'⏸ 暫停':'▶ 播放';document.getElementById('st').textContent=playing?'運鏡中':'已暫停';};
+// 串流載入 splat
+const fill=document.getElementById('fill'),pct=document.getElementById('pct');
+(async()=>{
+  const res=await fetch('assets/lt4_lidar_walk.compressed.ply'); const total=+res.headers.get('Content-Length')||18000000;
+  const rd=res.body.getReader(); const ch=[]; let got=0;
+  while(true){const {done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length;
+    const p=Math.min(100,Math.round(got/total*100)); fill.style.width=p+'%'; pct.textContent=`${p}%（${(got/1048576).toFixed(1)} MB）`;}
+  const url=URL.createObjectURL(new Blob(ch)); pct.textContent='解碼中…';
+  const asset=new pc.Asset('s','gsplat',{url,filename:'walk.compressed.ply'});
+  asset.on('load',()=>{const e=new pc.Entity(); e.addComponent('gsplat',{asset});
+    e.setLocalScale(XF.scale,XF.scale,XF.scale); e.setLocalRotation(new pc.Quat(XF.quat[0],XF.quat[1],XF.quat[2],XF.quat[3]));
+    e.setLocalPosition(XF.pos[0],XF.pos[1],XF.pos[2]); app.root.addChild(e);
+    document.getElementById('load').style.display='none'; window.__ready=true;});
+  asset.on('error',err=>pct.textContent='載入失敗：'+err); app.assets.add(asset); app.assets.load(asset);
+})();
+// 錄製一圈 → WebM 下載
+const recBtn=document.getElementById('rec');
+recBtn.onclick=()=>{
+  const stream=canvas.captureStream(30);
+  const rec=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:12000000});
+  const blobs=[]; rec.ondataavailable=e=>e.data.size&&blobs.push(e.data);
+  rec.onstop=()=>{const b=new Blob(blobs,{type:'video/webm'}); const u=URL.createObjectURL(b);
+    const a=document.createElement('a'); a.href=u; a.download='工坊_運鏡.webm'; a.click();
+    document.getElementById('st').textContent='已下載 ✓'; recBtn.classList.remove('rec'); recBtn.textContent='● 錄製一圈';};
+  const dur=Math.round(2*Math.PI/0.32)*1000;   // 一整圈時間
+  rec.start(); recBtn.classList.add('rec'); recBtn.textContent='■ 錄製中…';
+  document.getElementById('st').textContent='錄製一圈中…';
+  setTimeout(()=>rec.stop(), dur);
+};
+</script></body></html>
