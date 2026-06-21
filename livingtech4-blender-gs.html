@@ -52,6 +52,10 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-to
 <div class="note warn"><b>⚠ 實測限制</b>：KIRI 的高斯渲染<b>只能在 GUI</b>（無頭模式不產生幾何）；且本機 splat 是 DC-only（網頁版剝了球諧 SH），KIRI 需打光才會亮。</div>
 <div class="note"><b>關於「真 splat 物理重光」</b>：3DGS 把外觀烤進高斯、沒有反照率，無法乾淨重打光——這是<b>活躍研究題</b>（GS-IR、Relightable 3D Gaussians、GaussianShader）。本頁的 A 用 LiDAR 網格做真實光照；真 splat 的物理重光待研究級方法或保留 SH 的重訓。</div>
 
+<h2><span class="n">D</span>深度正則重訓（去霧 ＋ 保 SH 實驗）</h2>
+<p>為了「真 splat 也能重光」，在 Colab 用 gsplat 官方 trainer 開<b>深度損失＋保留 SH</b> 重訓家政場景。管線跑通、去霧成功、SH 練回來——但 1200px 輸入下品質贏不過 8K 版。<b>全程踩坑與誠實成效判讀</b>都記成一頁：</p>
+<a class="btn" href="homeec-depthreg.html">🧪 看深度正則重訓實驗紀錄 →</a>
+
 <h2><span class="n">＋</span>環境與工具</h2>
 <p class="mut">Blender 5.1.2 · Cycles/Metal（Apple M4 Max，無 CUDA）· KIRI 3DGS Render v5.0 · @playcanvas/splat-transform · PlayCanvas 2.10（網頁渲染）。完整操作說明與 .blend 場景隨交付提供。</p>
 

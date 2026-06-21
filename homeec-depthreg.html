@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>深度正則重訓實驗紀錄 — 家政教室去霧 × 保 SH</title>
+<style>
+:root{--bg:#0b0e14;--card:#141a23;--line:#222b38;--ink:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--acc2:#33b1ff;--ok:#3fb950;--warn:#e3b341;--bad:#f85149}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+a{color:var(--acc2);text-decoration:none}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px 60px}
+.back{display:inline-block;margin:14px 0;color:var(--mut);font-size:13px}
+header{padding:42px 0 18px;text-align:center;background:radial-gradient(900px 320px at 50% -90px,rgba(255,122,24,.16),transparent)}
+header h1{font-size:27px;margin:8px 0 6px}
+.tag{display:inline-block;background:#1b2230;border:1px solid var(--acc);color:var(--acc);border-radius:20px;padding:3px 12px;font:700 12px system-ui;letter-spacing:1px}
+header p{color:var(--mut);max-width:700px;margin:10px auto 0}
+h2{font-size:19px;margin:34px 0 8px;border-top:1px solid var(--line);padding-top:20px} h2 .n{color:var(--acc);font-weight:800;margin-right:6px}
+h3{font-size:15px;margin:18px 0 6px;color:var(--acc2)}
+.fig{margin:14px 0;text-align:center} .fig img,.fig video{max-width:100%;border:1px solid var(--line);border-radius:10px;background:#000} .fig .cap{font-size:12px;color:var(--mut);margin-top:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
+.note{border-left:3px solid var(--acc2);padding:8px 14px;margin:12px 0;background:#11161d;border-radius:0 8px 8px 0;font-size:13.5px}
+.warn{border-left-color:var(--warn)} .ok{border-left-color:var(--ok)} .bad{border-left-color:var(--bad)}
+.warn b{color:var(--warn)} .ok b{color:var(--ok)} .bad b{color:var(--bad)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;justify-content:center}
+.flow .b{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;text-align:center} .flow .b b{color:var(--acc2)} .flow .ar{color:var(--acc);font-weight:800}
+code{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:1px 6px;font-size:12px;word-break:break-all}
+p,li{font-size:14.5px} .mut{color:var(--mut)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#0d1117;color:var(--mut);font-weight:700;font-size:12px}
+td:first-child{color:var(--acc);font-weight:700;text-align:center;width:34px}
+tr:last-child td{border-bottom:none}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.stat{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:center}
+.stat .v{font-size:22px;font-weight:800;color:var(--acc2)} .stat .k{font-size:11.5px;color:var(--mut);margin-top:2px}
+.stat.warnv .v{color:var(--warn)}
+footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-top:1px solid var(--line);padding-top:16px}
+.pill{display:inline-block;font:700 11px system-ui;border-radius:6px;padding:2px 8px;margin:0 3px}
+.pill.ok{background:rgba(63,185,80,.15);color:var(--ok);border:1px solid rgba(63,185,80,.4)}
+.pill.no{background:rgba(248,81,73,.13);color:var(--bad);border:1px solid rgba(248,81,73,.4)}
+</style></head>
+<body>
+<header><div class="wrap">
+  <span class="tag">BLENDER × GS · 深度正則實驗</span>
+  <h1>深度正則重訓實驗紀錄</h1>
+  <p>家政教室 3DGS「去雲霧 ＋ 保留球諧 SH」的雲端重訓全程：流程、踩坑、與<b>誠實的成效判讀</b>。記錄重於結果——這是一次成功跑通管線、但確認「不該上站」的實驗（2026/06/21）。</p>
+</div></header>
+<div class="wrap">
+<a class="back" href="livingtech4-blender-gs.html">← Blender × GS</a>
+
+<h2><span class="n">①</span>為什麼要「重訓」而非後處理</h2>
+<p>第一人稱看到的<b>雲霧＝針狀低透明高斯</b>，跟銳利桌邊／牆面是同類異向高斯（本場景長寬比中位 13.6、75% 是針）。所以後處理兩難：夾全部會糊、刪太多會破洞。研究一致結論（StableGS／DRGSplat／Lund-LiDAR 2026）：<b>訓練時加深度約束</b>，把高斯壓回真實表面 → 雲霧根本不長。順便把網頁版被 <code>-H 0</code> 剝掉的 SH 重新訓回來，Blender／KIRI 才能正常渲染、可重光。</p>
+
+<h2><span class="n">②</span>流程</h2>
+<div class="flow">
+  <div class="b">家政 COLMAP<br><b>802 視角＋稀疏點</b></div><span class="ar">→</span>
+  <div class="b">Colab Pro <b>L4</b><br>gsplat 官方<br>simple_trainer</div><span class="ar">→</span>
+  <div class="b"><b>深度損失</b>＋<br><b>sh-degree 3</b><br>30000 步</div><span class="ar">→</span>
+  <div class="b">含 SH 的<br>標準 3DGS ply</div><span class="ar">→</span>
+  <div class="b">splat-transform<br>壓縮給網頁／<br>餵 KIRI·Blender</div>
+</div>
+<p class="mut">配方：<code>simple_trainer.py default --data-factor 1 --depth-loss --sh-degree 3 --max-steps 30000 --save-ply --disable-viewer</code></p>
+
+<h2><span class="n">③</span>環境踩坑（最有價值的紀錄）</h2>
+<p>Colab 現在的映像是 <b>torch 2.11.0+cu128</b>（超新，gsplat 無對應預編 wheel）。先用 <code>pip install gsplat --no-build-isolation</code> 從源碼編成功，接著跑官方 <code>simple_trainer.py</code> 卻<b>一個接一個</b>缺套件／版本不合——逐一排掉才跑得起來：</p>
+<table>
+<thead><tr><th>#</th><th>報錯</th><th>根因</th><th>解法</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>No module named 'tyro'</code></td><td>整包 <code>requirements.txt</code> 裡有要編譯的套件，build 失敗就<b>全部 rollback</b>，tyro 也沒裝成</td><td>別裝整包；只裝純 Python 輪子：<code>tyro nerfview viser tqdm imageio tensorboard torchmetrics plyfile</code></td></tr>
+<tr><td>2</td><td><code>gsplat.color_correct</code></td><td>PyPI sdist <b>漏打包</b>此子模組；只用在 eval 的色彩校正，<b>不影響訓練/輸出</b></td><td>寫一個 identity stub 模組頂掉它</td></tr>
+<tr><td>3</td><td><code>datasets.colmap</code></td><td>examples 的 <code>datasets/</code> <b>沒有 __init__.py</b>，被 Colab 預裝的 HuggingFace <code>datasets</code> 套件搶先 import</td><td><code>touch datasets/__init__.py</code> → 變正規 package，cwd 最前 → 本地版勝出</td></tr>
+<tr><td>4</td><td><code>No module named 'pycolmap'</code></td><td>要的是 rmbrualla 的純 Python pycolmap（有 SceneManager），不是官方綁定</td><td><code>pip install git+rmbrualla/pycolmap@cc7ea4b</code></td></tr>
+<tr><td>4b</td><td><code>OverflowError … uint64</code></td><td>該套件寫 <code>np.uint64(-1)</code>，<b>NumPy 2.0 不再把負數環繞</b>成無號數</td><td>patch 成 <code>np.uint64(2**64-1)</code></td></tr>
+<tr><td>5</td><td><code>No module named 'fused_ssim'</code></td><td>SSIM loss 的 fused CUDA kernel（硬 import）</td><td><code>pip install git+rahul-goel/fused-ssim --no-build-isolation</code>（編 ~1.5 分）</td></tr>
+<tr><td>6</td><td><code>No module named 'splines'</code></td><td>nerfview 互動 viewer 的依賴</td><td><code>pip install splines</code> ＋ 訓練加 <code>--disable-viewer</code></td></tr>
+</tbody>
+</table>
+<div class="note ok"><b>✓ 教訓</b>：<b>先跑 200 步 smoke test</b> 把這串 import 一次掃完（gsplat 首次 JIT 編 CUDA 約 189 秒、編完會 cache），再開 30000 步正式跑——省得等 40 分鐘才在第 0 步炸。卡關報錯時也可按 Colab 的「<b>說明錯誤</b>」叫 Gemini 給提示，多一個 AI 視角再自行驗證。</div>
+
+<h2><span class="n">④</span>訓練結果</h2>
+<div class="stats">
+  <div class="stat"><div class="v">30000</div><div class="k">訓練步數</div></div>
+  <div class="stat"><div class="v">2.44M</div><div class="k">高斯數（含 SH）</div></div>
+  <div class="stat"><div class="v">~38 分</div><div class="k">L4 訓練時間</div></div>
+  <div class="stat warnv"><div class="v">18.4</div><div class="k">PSNR（新視角）</div></div>
+  <div class="stat warnv"><div class="v">0.776</div><div class="k">SSIM</div></div>
+</div>
+<p>整條深度正則管線在 Colab <b>跑通並完整記錄</b>；<span class="pill ok">去霧成功</span>飄絲消失、高斯貼回表面；<span class="pill ok">SH 練回來</span>可餵 Blender／KIRI 重光。但 eval 指標偏低，得看實際畫面才準。</p>
+
+<h2><span class="n">⑤</span>成效判讀（誠實版）</h2>
+<p>下面是<b>保留的新視角（held-out）</b>渲染——左：原始照片（GT）／右：模型預測。這是檢驗「學得準不準」最公正的方式。</p>
+<div class="fig"><img src="assets/depthreg_val_window.png" alt="val 視角：窗與牆"><div class="cap">左 GT 銳利／右 預測<b>很糊</b>：窗框、黑板位置都對，但細節被抹掉</div></div>
+<div class="grid2">
+  <div class="fig"><img src="assets/depthreg_val_room.png"><div class="cap">另一視角：結構認得出，整體偏軟</div></div>
+  <div class="fig"><img src="assets/depthreg_val_fail.png"><div class="cap">少數 pose（落在覆蓋不足區）預測<b>幾乎全黑</b></div></div>
+</div>
+<div class="fig"><video src="assets/depthreg_traj.mp4" controls muted playsinline poster="assets/depthreg_traj_frame.png"></video><div class="cap">自動環繞影片：橢圓路徑會穿過低覆蓋區 → 糊白／黑，<b>不適合當展示</b></div></div>
+
+<h3>根因</h3>
+<ul>
+<li><b>輸入解析度只有 1200×900</b>（COLMAP 沿用 800px 預縮放版），遠低於現有 8K Brush 版——這是糊的主因。</li>
+<li>深度正則把高斯壓到表面（<b>去霧有效</b>），但也犧牲一點銳利度。</li>
+<li>360 衍生的相機 pose 在部分區域不準＋視角覆蓋稀疏 → 新視角破綻大。</li>
+</ul>
+
+<h2><span class="n">⑥</span>結論與下一步</h2>
+<div class="note ok"><b>✓ 達成</b>：去霧成功（無飄絲）·SH 練回來（可重光）·深度正則管線在 Colab 跑通並完整記錄。</div>
+<div class="note bad"><b>✗ 但</b>：1200px 下品質<b>贏不過 8K Brush 版</b>（更糊、PSNR 18、少數視角全黑）。<b>不拿去取代網站現有版本</b>（會是降級）。 <span class="pill no">不上站</span></div>
+<div class="note warn"><b>💡 真要「又去霧又清晰」</b>：得用<b>更高解析度的輸入重抽 COLMAP</b>（直接用原始高解析幀、別 800px 預縮放）再加深度正則重跑一輪。管線已通，重跑只是換資料、再等 ~40 分。</div>
+<p class="mut">這次徹底驗證了既有判斷：正規 trainer（SSIM／schedule／正確 SH）也救不了低解析度輸入。實驗的價值在<b>可重複的管線</b>與這份踩坑紀錄本身。含 SH 的模型已本機封存，供後續 Blender／KIRI 重光實驗。</p>
+
+<h2><span class="n">＋</span>環境與工具</h2>
+<p class="mut">Colab Pro · NVIDIA L4 · torch 2.11.0+cu128 · gsplat 1.5.3（<code>--no-build-isolation</code> 源碼編）· fused-ssim · rmbrualla/pycolmap · 家政 COLMAP 802 視角 · @playcanvas/splat-transform（壓縮保 SH）。</p>
+
+<footer>X5 RoomTour · 深度正則重訓實驗紀錄 · 2026/06/21</footer>
+</div></body></html>
