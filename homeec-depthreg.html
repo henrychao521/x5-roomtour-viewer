@@ -122,6 +122,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-to
 <div class="fig"><img src="assets/depthreg1600_val0.png" alt="1600 val0"><div class="cap">這個視角在 1200px 版是<b>整片全黑</b>；1600px 版整間教室都清楚重建——日光燈、吊扇、窗、黑板、工作桌、地磚，過路的人也正確消失</div></div>
 <div class="fig"><img src="assets/depthreg1600_val5.png"><div class="cap">1200px 版這裡是一片霧白；1600px 版窗框、流理台、綠色窗景、地磚都銳利、顏色正確（bilateral grid 修好了曝光）</div></div>
 <div class="note ok"><b>✓ 結論</b>：1600px + bilateral grid 是<b>可上站品質</b>，同時保 SH（餵 Blender/KIRI 重光）＋去霧（深度正則）。LPIPS 砍半最關鍵——感知清晰度約 2× 提升。<b>教訓：低解析度不是管線的錯，拉高輸入＋修曝光就能贏。</b></div>
+<p style="text-align:center;margin:18px 0"><a href="classroom-depthreg.html" style="display:inline-block;background:var(--acc);color:#fff;border-radius:9px;padding:11px 20px;font:700 14px system-ui;text-decoration:none">🛋️ 開啟去霧版互動檢視器（室內環視）→</a></p>
 <p class="mut">交付：含 SH 壓縮模型（143MB，給 Blender/KIRI）＋去 SH web 版（38MB，2.44M 高斯）。本實驗證明深度正則 + SH 管線在足夠解析度下能產出可部署成果。</p>
 
 <h2><span class="n">＋</span>環境與工具</h2>
