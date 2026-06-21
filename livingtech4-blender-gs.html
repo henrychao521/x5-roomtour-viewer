@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blender × Gaussian Splatting — 工坊/家政</title>
+<style>
+:root{--bg:#0b0e14;--card:#141a23;--line:#222b38;--ink:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--acc2:#33b1ff;--ok:#3fb950;--warn:#e3b341}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+a{color:var(--acc2);text-decoration:none}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px 60px}
+.back{display:inline-block;margin:14px 0;color:var(--mut);font-size:13px}
+header{padding:42px 0 18px;text-align:center;background:radial-gradient(900px 320px at 50% -90px,rgba(255,122,24,.16),transparent)}
+header h1{font-size:28px;margin:0 0 6px}
+.tag{display:inline-block;background:#1b2230;border:1px solid var(--acc);color:var(--acc);border-radius:20px;padding:3px 12px;font:700 12px system-ui;letter-spacing:1px}
+header p{color:var(--mut);max-width:680px;margin:10px auto 0}
+h2{font-size:19px;margin:34px 0 8px;border-top:1px solid var(--line);padding-top:20px} h2 .n{color:var(--acc);font-weight:800;margin-right:6px}
+.fig{margin:14px 0;text-align:center} .fig img{max-width:100%;border:1px solid var(--line);border-radius:10px;background:#fff} .fig .cap{font-size:12px;color:var(--mut);margin-top:5px}
+.note{border-left:3px solid var(--acc2);padding:8px 14px;margin:12px 0;background:#11161d;border-radius:0 8px 8px 0;font-size:13.5px}
+.warn{border-left-color:var(--warn)} .ok{border-left-color:var(--ok)} .warn b{color:var(--warn)} .ok b{color:var(--ok)}
+.btn{display:inline-block;background:var(--acc);color:#fff;border-radius:9px;padding:10px 18px;font:700 14px system-ui;margin:8px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;justify-content:center}
+.flow .b{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;text-align:center} .flow .b b{color:var(--acc2)} .flow .ar{color:var(--acc);font-weight:800}
+code{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:1px 6px;font-size:12.5px}
+p,li{font-size:14.5px} .mut{color:var(--mut)}
+footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-top:1px solid var(--line);padding-top:16px}
+</style></head>
+<body>
+<header><div class="wrap">
+  <span class="tag">BLENDER × GS</span>
+  <h1>Blender × Gaussian Splatting</h1>
+  <p>把 LiDAR 公尺級 3DGS 場景接進 Blender：物理級日照模擬、電影級運鏡、與真高斯匯入 Blender 的管線實測（2026/06）。</p>
+</div></header>
+<div class="wrap">
+<a class="back" href="index.html">← X5 RoomTour</a>
+
+<h2><span class="n">A</span>物理級日照模擬</h2>
+<p>用太陽位置物理模型（赤緯＋時差＋時角，lat 24.15）驅動 Blender 太陽燈，對 LiDAR 網格渲染<b>真實投射陰影</b>，重現教室一天的採光變化。比網頁版「CSS 假調色」多了真實太陽角度與陰影。</p>
+<div class="fig"><img src="assets/blender_daylight.png"><div class="cap">家政教室・Blender 物理日照研究（夏至 07–17 時，Cycles/Metal 渲染）</div></div>
+
+<h2><span class="n">B</span>電影級運鏡</h2>
+<p>照片級 3DGS <b>自動繞行運鏡</b>（繞行＋升降＋半徑脈動）環視整間工坊，內建「錄製一圈」一鍵輸出 WebM 影片，免裝軟體、適合簡報。由 PlayCanvas 即時渲染真高斯。</p>
+<a class="btn" href="livingtech4-flythrough.html">🎬 開啟電影級運鏡 →</a>
+
+<h2><span class="n">C</span>真 3DGS 進 Blender（管線實測）</h2>
+<div class="flow">
+  <div class="b">壓縮 splat<br><b>.compressed.ply</b></div><span class="ar">→</span>
+  <div class="b"><b>splat-transform</b><br>解碼成標準<br>3DGS ply</div><span class="ar">→</span>
+  <div class="b"><b>KIRI 外掛</b><br>匯入 Blender 5.1</div><span class="ar">→</span>
+  <div class="b">視埠可見<br>真高斯</div>
+</div>
+<p>指令 <code>npx -y @playcanvas/splat-transform 壓縮.ply 標準.ply</code> 無損還原出 x,y,z／f_dc／opacity／rot／scale，再用 KIRI「3DGS Render」外掛匯入。1.11M 高斯成功進 Blender。</p>
+<div class="note warn"><b>⚠ 實測限制</b>：KIRI 的高斯渲染<b>只能在 GUI</b>（無頭模式不產生幾何）；且本機 splat 是 DC-only（網頁版剝了球諧 SH），KIRI 需打光才會亮。</div>
+<div class="note"><b>關於「真 splat 物理重光」</b>：3DGS 把外觀烤進高斯、沒有反照率，無法乾淨重打光——這是<b>活躍研究題</b>（GS-IR、Relightable 3D Gaussians、GaussianShader）。本頁的 A 用 LiDAR 網格做真實光照；真 splat 的物理重光待研究級方法或保留 SH 的重訓。</div>
+
+<h2><span class="n">＋</span>環境與工具</h2>
+<p class="mut">Blender 5.1.2 · Cycles/Metal（Apple M4 Max，無 CUDA）· KIRI 3DGS Render v5.0 · @playcanvas/splat-transform · PlayCanvas 2.10（網頁渲染）。完整操作說明與 .blend 場景隨交付提供。</p>
+
+<footer>X5 RoomTour · Blender × Gaussian Splatting · 2026/06/21</footer>
+</div></body></html>
