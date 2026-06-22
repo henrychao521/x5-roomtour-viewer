@@ -25,8 +25,8 @@
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 
 // === from homeec-stitched COLMAP poses (837 cams): up→+Y align quat + interior spawn ===
-const ALIGN=[-0.9859,0.0,0.11661,0.12003];      // x,y,z,w
-const SPAWN=[-0.039,0.05,0.129];                 // room-centre (cam centroid, eye height)
+const ALIGN=[-0.97992,0.0,0.07992,0.18267];      // floor-plane fit (true up→+Y)
+const SPAWN=[-0.048,0.0,0.125];                  // room-centre (cam centroid, eye height)
 
 const canvas=document.getElementById('c');
 const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas),touch:new pc.TouchDevice(canvas),

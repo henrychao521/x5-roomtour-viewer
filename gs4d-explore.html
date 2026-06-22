@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3DGS × 4DGS 在 Blender 生態：探索與實作紀錄</title>
+<style>
+:root{--bg:#0b0e14;--card:#141a23;--line:#222b38;--ink:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--acc2:#33b1ff;--ok:#3fb950;--warn:#e3b341;--bad:#f85149}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+a{color:var(--acc2);text-decoration:none}
+.wrap{max-width:1000px;margin:0 auto;padding:0 18px 60px}
+.back{display:inline-block;margin:14px 0;color:var(--mut);font-size:13px}
+header{padding:42px 0 18px;text-align:center;background:radial-gradient(900px 320px at 50% -90px,rgba(51,177,255,.16),transparent)}
+header h1{font-size:26px;margin:8px 0 6px}
+.tag{display:inline-block;background:#1b2230;border:1px solid var(--acc2);color:var(--acc2);border-radius:20px;padding:3px 12px;font:700 12px system-ui;letter-spacing:1px}
+header p{color:var(--mut);max-width:760px;margin:10px auto 0}
+h2{font-size:19px;margin:34px 0 8px;border-top:1px solid var(--line);padding-top:20px} h2 .n{color:var(--acc);font-weight:800;margin-right:6px}
+h3{font-size:15px;margin:18px 0 6px;color:var(--acc2)}
+.note{border-left:3px solid var(--acc2);padding:8px 14px;margin:12px 0;background:#11161d;border-radius:0 8px 8px 0;font-size:13.5px}
+.warn{border-left-color:var(--warn)} .ok{border-left-color:var(--ok)} .bad{border-left-color:var(--bad)}
+.warn b{color:var(--warn)} .ok b{color:var(--ok)} .bad b{color:var(--bad)}
+code{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:1px 6px;font-size:12px;word-break:break-all}
+p,li{font-size:14.5px} .mut{color:var(--mut)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:block;overflow-x:auto}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#0d1117;color:var(--mut);font-weight:700;font-size:12px;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.v-yes{color:var(--ok);font-weight:700} .v-no{color:var(--bad);font-weight:700} .v-q{color:var(--warn);font-weight:700}
+.btn{display:inline-block;background:var(--acc);color:#fff;border-radius:9px;padding:10px 18px;font:700 14px system-ui;margin:8px 6px 8px 0}
+.btn.alt{background:#1b2230;border:1px solid var(--acc2);color:var(--acc2)}
+.log{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:10px 14px;margin:8px 0;font-size:13px}
+.log .d{color:var(--acc);font-weight:700;font-size:12px}
+footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-top:1px solid var(--line);padding-top:16px}
+</style></head>
+<body>
+<header><div class="wrap">
+  <span class="tag">3DGS × 4DGS · 探索與實作紀錄（持續更新）</span>
+  <h1>高斯潑濺在 Blender 生態：把報告落到我們的真實資產上</h1>
+  <p>一份 3DGS/4DGS 技術綜述報告的<b>實作驗證日誌</b>：把報告的框架、宣稱與前瞻專案，逐一對照「我們親手做過、量測過的結果」，標明哪些已驗證、哪些待查、哪些偏樂觀，並記錄實際動手做的雛形與踩坑。</p>
+</div></header>
+<div class="wrap">
+<a class="back" href="index.html">← X5 RoomTour</a>
+
+<h2><span class="n">①</span>報告的核心框架（摘要）</h2>
+<p>報告主張電腦圖形學正從<b>顯式多邊形</b>轉向<b>輻射場（Radiance Fields）</b>：3DGS 把場景表示成數百萬個各向異性高斯橢球（位置、共變異數、不透明度、球諧 SH 編碼視角相依色彩）；4DGS 再加時間維度（變形場 / 時間條件參數 / 顯式 4D 高斯）重現動態。Blender 生態靠 KIRI 3DGS Render、BlendSplat（幾何節點+著色器廣告牌）、SkySplat 等外掛整合，官方也在推原生點雲+Cycles 橢球原語。核心命題＝<b>靜動態分離的 Hybrid 3D-4DGS</b>（靜態環境 3DGS + 動態主體 4DGS，Z-depth 合成），並提了四個前瞻專案（VR 堪景 / AI 合成資料 / Web 體積影音 / 物理特效）。</p>
+
+<h2><span class="n">②</span>報告 vs 我們的實測（誠實對照）</h2>
+<p>這是本頁最有價值的部分——把報告的技術宣稱對到我們<b>動手驗過</b>的結果：</p>
+<table>
+<thead><tr><th>報告宣稱</th><th>狀態</th><th>我們的實測 / 註記</th></tr></thead>
+<tbody>
+<tr><td>KIRI 3DGS Render 匯入 .ply 到 Blender</td><td class="v-yes">已驗證</td><td>可匯入；但<b>渲染只能 GUI</b>（無頭模式不產生幾何、畫面全黑）。見 <a href="livingtech4-blender-gs.html">Blender×GS</a>。</td></tr>
+<tr><td>網頁版 splat 含 SH（視角相依色彩）</td><td class="v-no">與我們相反</td><td>我們的網頁匯出是 <code>-H 0</code> <b>DC-only（剝了 SH）</b>；要 SH 得重訓。</td></tr>
+<tr><td>splat-transform 壓縮 / 過濾（SH 帶、裁切、濾飄絲）</td><td class="v-yes">已驗證</td><td>實用：<code>-H 0..3</code> 砍 SH 帶、<code>-B</code> 盒裁、<code>-G</code> 濾飄絲、<code>-F</code> 抽稀。今天才用來出 web 版。</td></tr>
+<tr><td>深度約束訓練去飄絲 + 保 SH</td><td class="v-yes">已驗證</td><td>家政 gsplat <code>--depth-loss --sh-degree 3</code>，1600px+bilateral 後 PSNR 18→22。見 <a href="homeec-depthreg.html">深度正則紀錄</a>。</td></tr>
+<tr><td>靜態 3DGS + 動態層 的 Hybrid 概念</td><td class="v-yes">部分驗證</td><td>我們有靜態教室 3DGS + 人流軌跡分析；今天做了「物理球（動態）疊在 3DGS（靜態）」雛形（見 ③）。</td></tr>
+<tr><td>Apple ML-Sharp「單張影像生成 3DGS」→ 偽 4DGS</td><td class="v-q">待查</td><td>聽起來很強但細節我未證實，動手用前要查。</td></tr>
+<tr><td>KIRI 5.0：4DGS .ply 序列 / 代理網格綁定 / 燈光烘焙寫回 SH 重打光</td><td class="v-q">待查</td><td>我們的 5.0 只驗過匯入+GUI 渲染；這些進階功能未實測。3DGS 重打光本質是<b>研究題</b>（GS-IR/Relightable），別預設能用。</td></tr>
+<tr><td>Blender 官方原生 GS（點雲+Cycles 橢球原語，#159470）</td><td class="v-q">待查</td><td>方向可信，但成熟度/可用性要查官方進度。</td></tr>
+<tr><td>I-frame/P-frame 時序壓縮 4DGS、KHR_gaussian_splatting 標準</td><td class="v-q">待查</td><td>概念合理（類影片編碼）；標準化狀態與工具支援度待查。</td></tr>
+</tbody>
+</table>
+<div class="note warn"><b>一句話</b>：報告的<b>3DGS 現況</b>大致與我們實測吻合（甚至我們在去霧+保SH+web 壓縮上已有可上站成果）；但<b>4DGS 與重打光那一段偏前瞻</b>，多數宣稱要先查證再下注。</div>
+
+<h2><span class="n">②</span>實作雛形</h2>
+
+<h3>雛形 A · 物理 × 3DGS（對應報告專案 4）</h3>
+<p>把 <b>CG 物理物件</b>放進<b>去霧 3DGS 教室</b>裡：球受真實重力，地板/牆面的彈跳邊界是<b>從 COLMAP 198,815 個稀疏點擬合地板平面算出來的</b>（floor Y、房間範圍）。這正是報告講的「靜態輻射場 + 動態網格、Z-depth 合成」最小可行版。</p>
+<a class="btn" href="classroom-physics.html">🏀 開啟 物理 × 3DGS 雛形 →</a>
+<div class="note ok"><b>✓ 已驗證</b>：3DGS 場景在真實瀏覽器全解析度渲染；物理數值正確（手動積分球會落到地板 Y=−2.22 靜止）；mesh 球體位置即時更新。<b>會在你的前景瀏覽器動起來。</b></div>
+<div class="note warn"><b>⚠ 環境限制（誠實）</b>：我能驅動的所有瀏覽器情境（無頭預覽、擴充背景分頁）都把 <code>requestAnimationFrame</code> <b>節流到 0</b>（背景分頁不畫），所以我<b>截不到動畫的圖</b>——但程式邏輯已逐項驗過。請你在前景分頁打開看實際彈跳。</div>
+<div class="note"><b>待你確認的點</b>：PlayCanvas 2.10 預設的 <b>gsplat × mesh 深度合成</b>（球被桌子擋住、球擋住後方牆）是否正確——這正是報告點名最難的 Z-depth 問題。若球永遠浮在 splat 前/後，就需要替 gsplat 開深度寫入或自訂混合。</div>
+
+<h3>雛形 B · 偽 4DGS / 動態人流（規劃中）</h3>
+<p>下一個雛形：把<b>真實人流軌跡</b>（我們已有工坊 360 人流落地資料）做成<b>隨時間移動的動態層</b>疊在靜態教室 3DGS 上，加時間軸刷桿——這是報告「Hybrid 3D-4DGS」更貼近教育現場的版本（不需相機陣列）。或用<b>單眼影片逐幀 3DGS 對齊</b>做偽 4DGS 片段。資料已有，待動手。</p>
+
+<h2><span class="n">③</span>對「教育數位孿生」最務實的落點</h2>
+<ul>
+<li><b>專案 3（Web 互動體積影音）＋專案 4（物理）= 我們的甜蜜點</b>：已有 web 檢視器 + 壓縮管線 + 物理雛形，延伸成「可互動、會動、會碰撞的教室」最自然。</li>
+<li><b>偽 4DGS 教室</b>（靜態去霧 3DGS + 單眼影片/人流動態）＝最務實的 4D 路線，全用現有資產。</li>
+<li>專案 1（VR 堪景）、專案 2（自駕/機器人合成資料）：離教育場景遠、硬體/領域成本高，暫不投。</li>
+</ul>
+
+<h2><span class="n">④</span>更新日誌</h2>
+<div class="log"><span class="d">2026-06-22</span> · 建立本探索頁；完成報告 vs 實測對照表；做出「物理 × 3DGS」雛形（classroom-physics.html，地板邊界由 COLMAP 點雲擬合）並驗證程式邏輯正確；釐清 rAF 背景節流導致無法截動畫的環境限制；標出 gsplat×mesh 深度合成待確認。下一步：偽 4DGS / 人流動態雛形、查證 4DGS 與重打光宣稱。</div>
+
+<footer>X5 RoomTour · 3DGS×4DGS 探索與實作紀錄 · 持續更新中 · 2026/06/22</footer>
+</div></body></html>
