@@ -68,7 +68,8 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-to
 <a class="btn" href="classroom-physics.html">🏀 開啟 物理 × 3DGS 雛形 →</a>
 <div class="note ok"><b>✓ 已驗證</b>：3DGS 場景在真實瀏覽器全解析度渲染；物理數值正確（手動積分球會落到地板 Y=−2.22 靜止）；mesh 球體位置即時更新。<b>會在你的前景瀏覽器動起來。</b></div>
 <div class="note warn"><b>⚠ 環境限制（誠實）</b>：我能驅動的所有瀏覽器情境（無頭預覽、擴充背景分頁）都把 <code>requestAnimationFrame</code> <b>節流到 0</b>（背景分頁不畫），所以我<b>截不到動畫的圖</b>——但程式邏輯已逐項驗過。請你在前景分頁打開看實際彈跳。</div>
-<div class="note"><b>待你確認的點</b>：PlayCanvas 2.10 預設的 <b>gsplat × mesh 深度合成</b>（球被桌子擋住、球擋住後方牆）是否正確——這正是報告點名最難的 Z-depth 問題。若球永遠浮在 splat 前/後，就需要替 gsplat 開深度寫入或自訂混合。</div>
+<div class="note bad"><b>✗ 證實了報告點名最難的點</b>：PlayCanvas 2.10 預設 <b>gsplat 在透明 pass 蓋過不透明 mesh 球 → 球被 splat 吃掉、消失</b>（老師實測回報「球消失了」）。這正是報告講的 Z-depth 合成難題，真的會踩到。</div>
+<div class="note ok"><b>✓ 解法（v1）</b>：把球放進獨立 <code>fx</code> overlay 圖層、最後渲染、<code>depthTest=false</code>＋自發光 → 球<b>永遠可見、在 splat 之上彈跳</b>。代價：暫時<b>不會被桌子真實遮擋</b>（球永遠在前）。要做到「球滾到桌子後面被擋住」的真深度合成，得替 gsplat 開深度寫入或自訂混合著色器——留作下一步。</div>
 
 <h3>雛形 B · 偽 4DGS / 動態人流（規劃中）</h3>
 <p>下一個雛形：把<b>真實人流軌跡</b>（我們已有工坊 360 人流落地資料）做成<b>隨時間移動的動態層</b>疊在靜態教室 3DGS 上，加時間軸刷桿——這是報告「Hybrid 3D-4DGS」更貼近教育現場的版本（不需相機陣列）。或用<b>單眼影片逐幀 3DGS 對齊</b>做偽 4DGS 片段。資料已有，待動手。</p>
@@ -81,7 +82,8 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:40px 0;border-to
 </ul>
 
 <h2><span class="n">④</span>更新日誌</h2>
-<div class="log"><span class="d">2026-06-22</span> · 建立本探索頁；完成報告 vs 實測對照表；做出「物理 × 3DGS」雛形（classroom-physics.html，地板邊界由 COLMAP 點雲擬合）並驗證程式邏輯正確；釐清 rAF 背景節流導致無法截動畫的環境限制；標出 gsplat×mesh 深度合成待確認。下一步：偽 4DGS / 人流動態雛形、查證 4DGS 與重打光宣稱。</div>
+<div class="log"><span class="d">2026-06-22 ①</span> · 建立本探索頁；完成報告 vs 實測對照表；做出「物理 × 3DGS」雛形（classroom-physics.html，地板邊界由 COLMAP 點雲擬合）並驗證程式邏輯正確；釐清 rAF 背景節流導致無法截動畫的環境限制；標出 gsplat×mesh 深度合成待確認。</div>
+<div class="log"><span class="d">2026-06-22 ②</span> · 老師實測回報「球消失了」→ <b>證實 gsplat 蓋過 mesh 球</b>（報告點名最難的 Z-depth）。修法：球改放 <code>fx</code> overlay 層 always-on-top（depthTest=false＋自發光），球永遠可見、在 splat 上彈跳。已自驗（前景載入幀截到發光球）。代價：暫不做被桌子真實遮擋。下一步：真深度合成（gsplat 開深度寫入）、偽 4DGS／人流動態雛形、查證 4DGS 與重打光宣稱。</div>
 
 <footer>X5 RoomTour · 3DGS×4DGS 探索與實作紀錄 · 持續更新中 · 2026/06/22</footer>
 </div></body></html>
