@@ -45,15 +45,19 @@ const amb=new pc.Entity(); amb.addComponent('light',{type:'omni',intensity:0.4,r
 const fxLayer=new pc.Layer({name:'fx', opaqueSortMode:pc.SORTMODE_NONE, transparentSortMode:pc.SORTMODE_NONE});
 app.scene.layers.push(fxLayer);
 cam.camera.layers=cam.camera.layers.concat([fxLayer.id]);
+light.light.layers=light.light.layers.concat([fxLayer.id]);
+amb.light.layers=amb.light.layers.concat([fxLayer.id]);
 
-let yaw=150,pitch=-14;
-function applyCam(){ cam.setPosition(SPAWN[0],SPAWN[1],SPAWN[2]); cam.setEulerAngles(pitch,yaw,0); }
+const _q=new URLSearchParams(location.search);   // live tuning: ?yaw=&pitch=&roll=
+let yaw=parseFloat(_q.get('yaw')||'150'),pitch=parseFloat(_q.get('pitch')||'-14');
+const ROLL=parseFloat(_q.get('roll')||'0');
+function applyCam(){ cam.setPosition(SPAWN[0],SPAWN[1],SPAWN[2]); cam.setEulerAngles(pitch,yaw,ROLL); }
 applyCam();
 
 // ---- balls ----
 const COLORS=[[1,.45,.1],[.2,.7,1],[.3,.85,.4],[1,.8,.2],[.9,.3,.5],[.6,.4,.95]];
 const balls=[]; let ci=0; window.__balls=balls;
-function mkMat(c){const m=new pc.StandardMaterial();m.diffuse=new pc.Color(c[0],c[1],c[2]);m.emissive=new pc.Color(c[0],c[1],c[2]);m.useLighting=false;m.depthTest=false;m.update();return m;}
+function mkMat(c){const m=new pc.StandardMaterial();m.diffuse=new pc.Color(c[0],c[1],c[2]);m.gloss=.9;m.specular=new pc.Color(.85,.85,.85);m.emissive=new pc.Color(c[0]*.18,c[1]*.18,c[2]*.18);m.depthTest=false;m.update();return m;}
 function addBall(p,v){
   const e=new pc.Entity(); e.addComponent('render',{type:'sphere'});
   e.render.material=mkMat(COLORS[ci++%COLORS.length]); e.render.layers=[fxLayer.id];
