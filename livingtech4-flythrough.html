@@ -28,6 +28,9 @@
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 const XF={scale:1.22484,quat:[0.90643,-0.03748,-0.41975,-0.02803],pos:[3.645,0.185,4.144]};
 const FLOOR_Y=-0.442;
+const Q=new URLSearchParams(location.search);
+const PLY=Q.get('ply')==='defog'?'assets/lt4_defog.compressed.ply':'assets/lt4_lidar_walk.compressed.ply';
+const FIX=Q.has('fix');
 const canvas=document.getElementById('c');
 const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true,preserveDrawingBuffer:true}});
 app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
@@ -36,7 +39,7 @@ const cam=new pc.Entity(); cam.addComponent('camera',{clearColor:new pc.Color(0.
 app.root.addChild(cam);
 // 運鏡：繞工坊中心慢速軌道 + 輕微升降
 const CTR=new pc.Vec3(3.5,FLOOR_Y+0.95,4.0); let R=4.2, H=FLOOR_Y+1.55;
-let t=0, playing=true;
+let t=FIX?10:0, playing=!FIX;
 app.on('update',dt=>{
   if(playing) t+=dt;
   const a=t*0.32;                          // 角速度
@@ -48,7 +51,7 @@ document.getElementById('play').onclick=e=>{playing=!playing;e.target.textConten
 // 串流載入 splat
 const fill=document.getElementById('fill'),pct=document.getElementById('pct');
 (async()=>{
-  const res=await fetch('assets/lt4_lidar_walk.compressed.ply'); const total=+res.headers.get('Content-Length')||18000000;
+  const res=await fetch(PLY); const total=+res.headers.get('Content-Length')||18000000;
   const rd=res.body.getReader(); const ch=[]; let got=0;
   while(true){const {done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length;
     const p=Math.min(100,Math.round(got/total*100)); fill.style.width=p+'%'; pct.textContent=`${p}%（${(got/1048576).toFixed(1)} MB）`;}
