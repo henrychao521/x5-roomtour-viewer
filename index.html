@@ -81,7 +81,7 @@
 <body>
 <nav><div class="wrap">
   <div class="brand">🏫 X5 <b>RoomTour</b></div>
-  <span style="display:flex;gap:8px"><a class="gh" href="tech.html">🛠 技術文件</a><a class="gh" href="https://github.com/henrychao521/x5-roomtour" target="_blank">原始碼 ↗</a></span>
+  <span style="display:flex;gap:8px"><a class="gh" href="tech.html">🛠 技術文件</a><span class="gh" style="cursor:default" title="程式碼未公開">🔒 原始碼私有</span></span>
 </div></nav>
 
 <header class="hero"><div class="wrap">
@@ -215,14 +215,14 @@
       <div class="ic">📐</div><h3>建築平面圖 + 人流追蹤</h3>
       <p>建築製圖風格上視圖，標注牆/窗/門/燈/家具與尺寸；人物即時座標與軌跡記錄。</p>
       <span class="chip">公尺座標</span><span class="go">開啟 →</span></a>
-    <a class="card" href="https://github.com/henrychao521/x5-roomtour/blob/master/scripts/measure_space.py" target="_blank">
+    <div class="card" style="cursor:default">
       <div class="ic">📏</div><h3>尺寸量測化</h3>
       <p>以天花板日光燈管（4ft=1.22m）標定比例，自動算出空間與家具尺寸。</p>
-      <span class="chip">±10% · 待 LiDAR 精校</span><span class="go">看腳本 ↗</span></a>
-    <a class="card" href="https://github.com/henrychao521/x5-roomtour/blob/master/scripts/build_collision_mesh.py" target="_blank">
+      <span class="chip">±10% · 待 LiDAR 精校</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
+    <div class="card" style="cursor:default">
       <div class="ic">🧱</div><h3>碰撞 / 幾何</h3>
       <p>從點雲抽碰撞殼與佔據格，供物理引擎、碰撞偵測、量距使用（無需 CUDA）。</p>
-      <span class="chip">Open3D</span><span class="go">看腳本 ↗</span></a>
+      <span class="chip">Open3D</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
   </div>
 
   <h2 class="sec">數位孿生</h2>
@@ -247,10 +247,10 @@
       <div class="ic">🎬</div><h3>化身示範動畫</h3>
       <p>用真實拍攝軌跡與合成路徑，示範化身在 3D 空間巡場、跟拍、多人交會。</p>
       <span class="chip">展示</span><span class="go">觀看 →</span></a>
-    <a class="card" href="https://github.com/henrychao521/x5-roomtour/blob/master/docs/09-p1-digital-twin.md" target="_blank">
+    <div class="card" style="cursor:default">
       <div class="ic">🛠️</div><h3>部署手冊</h3>
       <p>攝影機接入、四點地板校準、隱私與進階（骨架/照片級化身）路線。</p>
-      <span class="chip">文件</span><span class="go">閱讀 ↗</span></a>
+      <span class="chip">文件</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
   </div>
 
   <h2 class="sec">空間規劃</h2>
@@ -272,14 +272,14 @@
       <div class="ic">🏫</div><h3>校園多樓層導覽</h3>
       <p>多場景 + 樓層堆疊的容器雛形。新拍房間 append 即現，樓梯間連續拍攝對齊樓層。</p>
       <span class="chip">雛形</span><span class="go">開啟 →</span></a>
-    <a class="card" href="https://github.com/henrychao521/x5-roomtour/blob/master/docs/10-campus-scale.md" target="_blank">
+    <div class="card" style="cursor:default">
       <div class="ic">🗺️</div><h3>校園級架構</h3>
       <p>切塊 + 導航圖 + 樓層對齊的可行性與拍攝指南（先做垂直切片 pilot）。</p>
-      <span class="chip">文件</span><span class="go">閱讀 ↗</span></a>
-    <a class="card" href="https://github.com/henrychao521/x5-roomtour/blob/master/scripts/run_scene.sh" target="_blank">
+      <span class="chip">文件</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
+    <div class="card" style="cursor:default">
       <div class="ic">⚙️</div><h3>一條龍腳本</h3>
       <p>縫合後 MP4 → COLMAP → 訓練 → 清理 → 網頁資產 → 碰撞資料，全自動。</p>
-      <span class="chip">自動化</span><span class="go">看腳本 ↗</span></a>
+      <span class="chip">自動化</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
   </div>
 
   <footer>
