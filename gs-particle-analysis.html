@@ -148,16 +148,26 @@
     <tr><td><b>Auto 自動門檻</b></td><td>門檻由資料分布自動決定（保守）</td><td>−38.8%</td><td>96k</td><td>9k</td><td>9k</td></tr>
   </table>
 
-  <h2 class="sec" style="margin-top:24px">成效分析（視覺評估）</h2>
-  <p class="lead">對照上圖，依「去霧程度」與「結構保留」綜合評比：</p>
+  <h2 class="sec" style="margin-top:24px">成效排名（以客觀指標為主）</h2>
+  <p class="lead">排名<b>以客觀量化指標為準</b>（霧體積↓ + 結構保留 + 是否留洞），而非主觀看圖——原因見下方盲測驗證。</p>
   <ol class="rank">
-    <li><span class="no">1</span><b>L3（貼面 surfel）— 最佳平衡。</b>邊/頂灰霧明顯變乾淨，且把 5.8 萬顆「薄但貼牆/桌」的高斯就地壓成對齊表面的圓盤，桌列與結構比 L1/L2 更銳利、無破洞。霧體積降幅也最大（−44.3%）。</li>
-    <li><span class="no">2</span><b>L2（表面保護）— 穩健。</b>去霧與 L1 相當，但保護真表面薄高斯不被誤夾，邊緣結構比 L1 完整。</li>
-    <li><span class="no">3</span><b>Level-set（距離）— 去霧俐落但較兇。</b>幾何移除離表面遠的高斯，空間霧掃得乾淨，但一次刪 29.6 萬顆，部分區域偏稀疏、有留洞風險。</li>
-    <li><span class="no">4</span><b>L1（各向異性）— 有效但會誤傷。</b>夾掉最多針狀（18.7 萬），去霧有感，但也夾到牆/桌面上的薄高斯，細節略損。</li>
-    <li><span class="no">5</span><b>Auto（自動門檻）— 太保守。</b>只動 1.8 萬顆，殘留霧最多，最接近原始；適合當「不敢刪」的安全基準，門檻仍需視場景放寬。</li>
+    <li><span class="no">1</span><b>L3（貼面 surfel）— 最佳。</b>霧體積降幅最大（<b>−44.3%</b>），且把 5.8 萬顆「薄但貼牆/桌」的高斯壓成對齊表面的圓盤（保結構、<b>不改點數、不留洞</b>）。</li>
+    <li><span class="no">2</span><b>L2（表面保護）— 穩健。</b>去霧 −41%，保護真表面薄高斯不被誤夾，結構比 L1 完整。</li>
+    <li><span class="no">3</span><b>L1（各向異性）— 有效但會誤傷。</b>去霧 −42%，但夾到牆/桌面上的薄高斯，細節略損。</li>
+    <li><span class="no">4</span><b>Level-set（距離）— 去霧俐落但較兇。</b>霧 −40%，幾何移除離表面遠的高斯，但一次刪 <b>29.6 萬顆</b>，偏稀疏、有留洞風險。</li>
+    <li><span class="no">5</span><b>Auto（自動門檻）— 太保守。</b>只動 1.8 萬顆、霧 −39%，最接近原始；適合當安全基準，門檻需視場景放寬。</li>
   </ol>
-  <div class="callout"><b>原始（未處理）</b>灰霧最重，尤其左側與頂部——這正是 3DGS 在牆外/覆蓋不足空區長出的雲霧。所有方法都比原始乾淨。</div>
+
+  <h2 class="sec" style="margin-top:24px">盲測 VLM 評分 — 為何「不能只靠 VLM 看圖」（驗證揭露）</h2>
+  <p class="lead">用 3 位獨立盲審（不同亂序、路徑不洩漏方法）給六張圖打分，並<b>自帶三重驗證</b>：E1 控制（真原始應被判最霧）、E2 校準（VLM 分數應與客觀霧量正相關）、E3 一致（裁判間排名一致性）。<b>結果三關過不了兩關</b>：</p>
+  <table>
+    <tr><th>驗證關卡</th><th>結果</th><th>說明</th></tr>
+    <tr><td><b>E1 控制</b>（raw=最霧）</td><td style="color:#ff6b6b;font-weight:700">FAIL 0/3</td><td>三位裁判都把 <b>level-set</b> 誤判為原始，而非真原始</td></tr>
+    <tr><td><b>E2 相關</b>（ρ）</td><td style="color:#ff6b6b;font-weight:700">FAIL</td><td>Spearman ρ=0.54、p=0.27（未達門檻且不顯著）</td></tr>
+    <tr><td><b>E3 一致</b>（τ）</td><td style="color:var(--accent);font-weight:700">WEAK</td><td>平均 Kendall τ=0.29（j1–j2 τ=0.60，j3 離群）</td></tr>
+  </table>
+  <div class="callout warn"><b>診斷：</b>level-set 移除 29.6 萬顆高斯 → 我們的<b>簡易軟體算圖</b>把稀疏點集畫得更暗/更灰 → <b>VLM 把這個「渲染假影」當成霧</b>，反而判它最霧。也就是 <b>VLM 評的是 2D 渲染、不是 3D 場景</b>——正是多模態模型「靠 2D 先驗、缺真 3D 理解」的已知限制。<b>但有訊號：</b>對<b>不改變點數</b>的夾制類（L1/L2/L3/auto），三裁判一致把它們判得比原始乾淨（方向對）。</div>
+  <div class="callout"><b>可推廣的教訓：</b>①VLM 評 3D <b>一定要有控制組＋客觀指標校準</b>（本例正是這兩關抓出不可信，否則我就會誤報「L3 最佳=VLM 驗證」）；②凡改變點數/密度的操作，簡易渲染器會產生 VLM 誤讀的假影 → 要用<b>正規 gsplat 渲染器</b>或<b>多視角</b>或<b>成對比較</b>；③成效排名<b>以客觀指標為主、VLM 為輔且需附註</b>。<span class="badge">方法細節見 VLM_FOR_3D.md</span></div>
 
   <!-- ── 4. 表面感知精修 ── -->
   <h2 class="sec">④ 為何 L2/L3 更準：局部表面變異度</h2>
