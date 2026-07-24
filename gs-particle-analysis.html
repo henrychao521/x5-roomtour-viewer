@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU 粒子法分析 × 3DGS 去霧 — X5 RoomTour</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#11151d; --card:#151a23; --line:#232a36;
+    --ink:#e6edf3; --mut:#8b97a7; --accent:#ff7a18; --accent2:#33b1ff;
+    --good:#39d98a; --r:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;line-height:1.6}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+  nav{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.82);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{font-weight:800;letter-spacing:.3px;font-size:16px}
+  .brand b{color:var(--accent)}
+  nav a.gh{font-size:13px;color:var(--mut);border:1px solid var(--line);padding:6px 12px;border-radius:8px}
+  nav a.gh:hover{color:var(--ink);border-color:var(--accent)}
+  .hero{padding:50px 0 26px;text-align:center;background:
+     radial-gradient(1200px 380px at 50% -120px,rgba(51,177,255,.16),transparent 70%)}
+  .hero h1{font-size:36px;line-height:1.15;margin:0 0 12px;font-weight:850;letter-spacing:-.5px}
+  .hero p{color:var(--mut);font-size:16.5px;max-width:680px;margin:0 auto 20px}
+  .pipe{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+  .pipe span{font-size:12.5px;color:var(--mut);background:var(--bg2);border:1px solid var(--line);
+     padding:5px 11px;border-radius:20px}
+  .pipe span b{color:var(--accent2)}
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:28px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 8px;text-align:center}
+  .stat .n{font-size:21px;font-weight:800;color:var(--accent)}
+  .stat .l{font-size:12px;color:var(--mut)}
+  h2.sec{font-size:14px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;margin:40px 0 14px;
+     border-left:3px solid var(--accent);padding-left:10px}
+  .tech-note{background:var(--bg2);border:1px solid var(--line);border-radius:10px;margin:0 0 16px}
+  .tech-note summary{cursor:pointer;padding:11px 15px;font-size:13px;font-weight:650;color:var(--ink);
+     list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .tech-note summary::-webkit-details-marker{display:none}
+  .tech-note summary::after{content:'＋';color:var(--accent);font-weight:800;font-size:15px}
+  .tech-note[open] summary::after{content:'－'}
+  .tech-note .body{padding:2px 15px 14px;font-size:13px;color:var(--mut);line-height:1.75}
+  .tech-note .body p{margin:0 0 9px}.tech-note .body b{color:var(--ink)}
+  .tech-note .refs{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+  .tech-note .refs a{color:var(--accent);font-size:12.5px}
+  .tech-note .refs a:hover{text-decoration:underline}
+  figure.big{margin:0 0 10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  figure.big img{width:100%;display:block;background:#000}
+  figure.big figcaption{padding:11px 15px;font-size:13px;color:var(--mut)}
+  figure.big figcaption b{color:var(--ink)}
+  .lead{color:var(--mut);font-size:15px;margin:2px 0 16px}
+  .lead b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:6px 0 8px;font-size:13.5px;background:var(--card);
+     border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:650;font-size:12.5px;letter-spacing:.3px;background:var(--bg2)}
+  td b{color:var(--ink)} tr:last-child td{border-bottom:none}
+  td.g{color:var(--good);font-weight:700} td.a{color:var(--accent);font-weight:700}
+  .badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+  .callout{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--accent2);
+     border-radius:10px;padding:13px 16px;margin:12px 0;font-size:14px;color:var(--mut)}
+  .callout b{color:var(--ink)} .callout.warn{border-left-color:var(--accent)}
+  .rank{list-style:none;padding:0;margin:8px 0} .rank li{background:var(--card);border:1px solid var(--line);
+     border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:14px}
+  .rank .no{color:var(--accent);font-weight:800;margin-right:8px}
+  footer{margin:50px 0 40px;padding-top:22px;border-top:1px solid var(--line);color:var(--mut);font-size:13px}
+  footer .tech{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  footer .tech span{background:var(--bg2);border:1px solid var(--line);padding:3px 10px;border-radius:6px;font-size:12px}
+  @media(max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:27px}
+     table{font-size:12px} th,td{padding:7px 8px}}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <div class="brand"><a href="index.html">🏫 X5 <b>RoomTour</b></a> · GPU 粒子法分析</div>
+  <a class="gh" href="index.html">← 回總覽</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>用 GPU 粒子法<br>重新分析與修正 3DGS 空間</h1>
+  <p>把教室 3DGS 掃描（上百萬顆高斯）當作「粒子」，用剛在 <b>Apple M4 Max</b> 上跑通的
+     <b>OpenFPM 5.2.0 Metal GPU</b> 粒子框架做鄰域分析與去霧，並與現行 CPU 管線多方比較。
+     全程本機、無 NVIDIA / CUDA。</p>
+  <div class="pipe">
+    <span>3DGS 高斯 = <b>粒子</b></span><span>→ <b>Metal</b> cell-list 鄰域</span>
+    <span>→ 密度 / 表面變異度</span><span>→ 去霧五法</span><span>→ SPH 空間物理</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="n">6</div><div class="l">分析場景</div></div>
+    <div class="stat"><div class="n">192 萬</div><div class="l">最大高斯數</div></div>
+    <div class="stat"><div class="n">21×</div><div class="l">GPU vs CPU</div></div>
+    <div class="stat"><div class="n">1.0000</div><div class="l">與 CPU 密度相關</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">去霧方法</div></div>
+  </div>
+
+  <p class="lead">3DGS 的每一顆高斯本質上就是帶屬性的 3D 粒子，剛好對上 <b>OpenFPM</b> 的核心——GPU 上的粒子鄰域搜尋（cell-list）。
+     這條線把「掃描出來的空間」餵進「新的 3D 運算分析方式」，做三件事：<b>(1)</b> 用 GPU 快速算每顆高斯的鄰域密度並與現行 CPU 管線逐點驗證；
+     <b>(2)</b> 用局部表面變異度分開「該留的薄面」與「該去的雲霧」，實作五種去霧法比較成效；<b>(3)</b> 把清理後的空間當邊界，在真實教室裡跑 SPH 流體。</p>
+
+  <!-- ── 1. Metal GPU 建置驗證 ── -->
+  <h2 class="sec">① 底層：OpenFPM Metal GPU 建置驗證</h2>
+  <details class="tech-note"><summary>📖 技術說明 — 為什麼是 OpenFPM / Metal，怎麼跑起來的</summary>
+    <div class="body">
+      <p><b>OpenFPM 5.2.0</b>（2026-07）首度加入 <b>Apple Metal GPU 後端</b>：CUDA 風格 kernel 經 HIP 前端→clspv→SPIR-V→MoltenVK→Metal，原始碼一行不改就能在 Apple Silicon GPU 上跑。本站從源碼在 M4 Max 上編譯跑通（踩過 Boost/HDF5/CMake 等相依坑），並以經典 <b>SPH 壩潰</b>驗證：17 萬顆粒子、完整 1.5 秒模擬，全在 Metal GPU（<code>AGXMetalG16X</code> 驅動確認載入）。</p>
+      <div class="refs">
+        <a href="https://github.com/mosaic-group/openfpm" target="_blank">▸ OpenFPM — 可擴充粒子/粒子-網格框架（GitHub）</a>
+        <a href="https://github.com/mosaic-group/openfpm/pull/18" target="_blank">▸ PR #18 — Metal GPU 後端（本站建置依據）</a>
+      </div>
+    </div>
+  </details>
+  <figure class="big"><img src="assets/gs-analysis/sph_dambreak.png" alt="SPH 壩潰 Metal GPU">
+    <figcaption><b>驗證：SPH 壩潰模擬在 M4 Max Metal GPU 上跑通</b> — 17 萬粒子、完整 1.5s、顏色為速度。水柱倒下→過障礙物→撞遠牆反彈→沉降。這證明「新的 3D 運算方式」在本機可用，接著才拿去分析掃描。</figcaption></figure>
+
+  <!-- ── 2. GPU vs CPU 密度分析 ── -->
+  <h2 class="sec">② 粒子鄰域分析：GPU vs 現行 CPU 管線</h2>
+  <p class="lead">把 3DGS 掃描載入 OpenFPM 的 <b>vector_dist_gpu</b>，在 Metal 上建 cell-list、算每顆高斯的<b>局部鄰域密度</b>；
+     再用現行管線的 <b>scipy cKDTree</b> 在 CPU 算<b>同一個量</b>——既驗證新方法正確，又比較速度。</p>
+  <figure class="big"><img src="assets/gs-analysis/gpu_vs_cpu.png" alt="GPU vs CPU 密度分析">
+    <figcaption><b>生活科技教室 106 萬高斯</b>：GPU 鄰域密度（新）與 CPU cKDTree（現行）逐點對照。密度場相關 <b>1.0000</b>、floater 偵測 <b>IoU=1.0</b>——結果一致；速度 <b>21×</b>。右下綠色＝兩法一致。</figcaption></figure>
+  <table>
+    <tr><th>教室 / 階段</th><th>高斯數</th><th>GPU 加速</th><th>密度相關</th><th>floater IoU</th><th>針狀高斯</th></tr>
+    <tr><td><b>生科・原始</b></td><td>1,063,383</td><td class="a">25.1×</td><td class="g">1.0000</td><td class="g">1.00</td><td>71,616</td></tr>
+    <tr><td><b>生科・完整</b></td><td>1,920,449</td><td class="a">6.8×</td><td class="g">1.0000</td><td class="g">1.00</td><td>195,356</td></tr>
+    <tr><td><b>生科・已清理</b></td><td>329,051</td><td class="a">10.1×</td><td class="g">1.0000</td><td class="g">1.00</td><td>77,692</td></tr>
+    <tr><td><b>家政・完整</b></td><td>1,484,392</td><td class="a">4.1×</td><td class="g">1.0000</td><td class="g">1.00</td><td>260,248</td></tr>
+    <tr><td><b>家政・去噪</b></td><td>761,646</td><td class="a">10.1×</td><td class="g">1.0000</td><td class="g">1.00</td><td>86,088</td></tr>
+  </table>
+  <div class="callout"><b>結論：</b>新的 GPU 粒子分析與現行 CPU 管線<b>逐點一致（相關＝1.0000）</b>，正確性完全站得住；同一運算 GPU 快 <b>4–25×</b>（越大越密的場景 CPU 也越慢，故倍率降低）。這條線本機可離線重跑。</div>
+
+  <!-- ── 3. 去霧五法比較（主） ── -->
+  <h2 class="sec">③ 空間雲霧修正：五種方法 × 成效比較</h2>
+  <p class="lead">3DGS 的「第一人稱霧」＝三類病態高斯：<b>孤立 floater</b>（低鄰域密度）、<b>針狀高斯</b>（高各向異性，霧的根因）、<b>瀰漫高斯</b>（低不透明度）。
+     用上面 GPU 算的密度 + <b>局部表面變異度</b>（鄰居共變異數 PCA），實作並比較五種修正法：</p>
+  <figure class="big"><img src="assets/gs-analysis/methods_montage.png" alt="去霧五法比較">
+    <figcaption><b>五法 vs 原始</b>（自寫軟體 splat 算圖，灰霧＝空間雲霧）。同一相機、同一場景，可直接比霧量與結構保留。</figcaption></figure>
+  <table>
+    <tr><th>方法</th><th>做法</th><th>霧體積↓</th><th>移除</th><th>夾制</th><th>貼面surfel</th></tr>
+    <tr><td><b>L1 各向異性</b></td><td>純形狀夾針 + 移除 floater</td><td>−42.2%</td><td>96k</td><td>187k</td><td>0</td></tr>
+    <tr><td><b>L2 +表面保護</b></td><td>不夾在真表面上的薄高斯</td><td>−41.0%</td><td>96k</td><td>128k</td><td>0</td></tr>
+    <tr><td class="a"><b>L3 +貼面 surfel</b></td><td>把薄面高斯沿法向壓成貼面圓盤</td><td class="g">−44.3%</td><td>96k</td><td>128k</td><td>58k</td></tr>
+    <tr><td><b>Level-set 距離</b></td><td>離任何真表面太遠即霧，幾何移除</td><td>−40.4%</td><td class="a">296k</td><td>0</td><td>0</td></tr>
+    <tr><td><b>Auto 自動門檻</b></td><td>門檻由資料分布自動決定（保守）</td><td>−38.8%</td><td>96k</td><td>9k</td><td>9k</td></tr>
+  </table>
+
+  <h2 class="sec" style="margin-top:24px">成效分析（視覺評估）</h2>
+  <p class="lead">對照上圖，依「去霧程度」與「結構保留」綜合評比：</p>
+  <ol class="rank">
+    <li><span class="no">1</span><b>L3（貼面 surfel）— 最佳平衡。</b>邊/頂灰霧明顯變乾淨，且把 5.8 萬顆「薄但貼牆/桌」的高斯就地壓成對齊表面的圓盤，桌列與結構比 L1/L2 更銳利、無破洞。霧體積降幅也最大（−44.3%）。</li>
+    <li><span class="no">2</span><b>L2（表面保護）— 穩健。</b>去霧與 L1 相當，但保護真表面薄高斯不被誤夾，邊緣結構比 L1 完整。</li>
+    <li><span class="no">3</span><b>Level-set（距離）— 去霧俐落但較兇。</b>幾何移除離表面遠的高斯，空間霧掃得乾淨，但一次刪 29.6 萬顆，部分區域偏稀疏、有留洞風險。</li>
+    <li><span class="no">4</span><b>L1（各向異性）— 有效但會誤傷。</b>夾掉最多針狀（18.7 萬），去霧有感，但也夾到牆/桌面上的薄高斯，細節略損。</li>
+    <li><span class="no">5</span><b>Auto（自動門檻）— 太保守。</b>只動 1.8 萬顆，殘留霧最多，最接近原始；適合當「不敢刪」的安全基準，門檻仍需視場景放寬。</li>
+  </ol>
+  <div class="callout"><b>原始（未處理）</b>灰霧最重，尤其左側與頂部——這正是 3DGS 在牆外/覆蓋不足空區長出的雲霧。所有方法都比原始乾淨。</div>
+
+  <!-- ── 4. 表面感知精修 ── -->
+  <h2 class="sec">④ 為何 L2/L3 更準：局部表面變異度</h2>
+  <details class="tech-note"><summary>📖 技術說明 — 表面變異度（Pauly）與 GPU 共變異數</summary>
+    <div class="body">
+      <p><b>做法：</b>在 GPU 鄰域迴圈裡順便累加每顆高斯的<b>鄰居共變異數</b>，host 端用 <code>eigvalsh</code> 求 PCA 特徵值 λ₀≤λ₁≤λ₂，取<b>表面變異度 SV = λ₀/(λ₀+λ₁+λ₂)</b>（Pauly 2002）。低 SV＝鄰居共面（真表面，即使高斯很薄也該留）；高 SV＝瀰漫團塊（霧）。這解決了「薄≠病，不貼面才是病」——單看形狀（各向異性）會把貼在牆上的薄高斯誤當針狀霧。</p>
+      <div class="refs">
+        <a href="https://graphics.stanford.edu/papers/surfacesimplification/" target="_blank">▸ Pauly 等 — Point-based surface simplification（surface variation 出處）</a>
+      </div>
+    </div>
+  </details>
+  <figure class="big"><img src="assets/gs-analysis/sv_compare.png" alt="表面變異度">
+    <figcaption><b>表面變異度分開「該留」與「該去」</b>：左＝SV 圖（藍/室內＝平面真表面，紅/周邊＝霧）；中＝針狀決策（紅＝仍夾的霧針，綠＝救回的真表面薄高斯 5.8 萬）；右＝判定保護的真表面 51.9 萬。純各向異性（L1）會誤夾綠色那些真表面高斯。</figcaption></figure>
+  <figure class="big"><img src="assets/gs-analysis/fogmap.png" alt="霧偵測圖">
+    <figcaption><b>霧高斯的空間分布</b>：紅＝偵測到的霧（集中在牆周/角落）、黃＝針狀高斯。可見霧確實堆在房間邊界與覆蓋不足處。</figcaption></figure>
+
+  <!-- ── 5. 空間物理 ── -->
+  <h2 class="sec">⑤ 延伸：把水灌進真實教室（SPH × 3DGS）</h2>
+  <p class="lead">同一套 OpenFPM，把去霧後的掃描表面當<b>邊界</b>，在真實教室幾何裡跑 <b>SPH 流體</b>——現行管線做不到的能力，對應物理教育情境。</p>
+  <figure class="big"><img src="assets/gs-analysis/room_sph.png" alt="SPH in room">
+    <figcaption><b>SPH-in-room v0</b>：水在掃描教室幾何裡崩塌流動（綠＝掃描邊界，色＝水速），全在 Metal GPU。<span class="badge">v0・邊界待精修</span> 目前邊界取樣較稀疏（水會漏），下一步改用 watertight 碰撞殼取樣。</figcaption></figure>
+
+  <div class="callout warn"><b>誠實界線：</b>粒子法是強力的<b>後處理分析與修正</b>（偵測＋移除/夾制/貼面），不是重建。要「不長出霧」需回訓練期（深度正則／FSGS／DNGaussian）。本頁的去霧屬後處理，與現行 <code>deneedle</code> 同性質，但更快（Metal）、多訊號、且對 CPU 逐點驗證。視覺最終驗收請把去霧版載進 splat viewer 走第一人稱。</div>
+
+  <footer>
+    <div>全程於 Apple Silicon（Mac Studio M4 Max）本機完成，無需 NVIDIA / CUDA。分析可離線重跑。</div>
+    <div class="tech"><span>OpenFPM 5.2.0</span><span>Metal GPU (MoltenVK)</span><span>vector_dist_gpu cell-list</span>
+      <span>PCA 表面變異度</span><span>SPH</span><span>scipy / numpy</span><span>plyfile</span></div>
+    <div style="margin-top:8px"><a href="index.html" style="color:var(--accent)">← 回 X5 RoomTour 總覽</a></div>
+  </footer>
+</main>
+</body>
+</html>

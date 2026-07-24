@@ -282,6 +282,33 @@
       <span class="chip">自動化</span><span class="go" title="程式碼未公開">🔒 私有</span></div>
   </div>
 
+  <h2 class="sec">GPU 粒子法分析 × 去霧（新）</h2>
+  <details class="tech-note"><summary>📖 技術說明與學習資源 — 把 3DGS 高斯當粒子，用 OpenFPM Metal GPU 分析</summary>
+    <div class="body">
+      <p><b>原理：</b>3DGS 的每顆高斯就是帶屬性的 3D 粒子，剛好對上 <b>OpenFPM</b> 的核心——GPU 上的粒子鄰域搜尋（cell-list）。本站在 <b>Apple M4 Max</b> 上把剛釋出的 <b>OpenFPM 5.2.0 Metal GPU 後端</b>從源碼跑通，拿去分析教室掃描：GPU 算每顆高斯的鄰域密度並與現行 <b>CPU（cKDTree）</b>逐點驗證（相關＝1.0000、快 4–25×）；再用<b>局部表面變異度</b>分開「該留的薄面」與「該去的雲霧」，實作五種去霧法比成效；並把清理後的空間當邊界跑 <b>SPH 流體</b>。全程無 NVIDIA / CUDA。</p>
+      <div class="refs">
+        <a href="https://github.com/mosaic-group/openfpm" target="_blank">▸ OpenFPM — 可擴充粒子/粒子-網格框架（GitHub）</a>
+        <a href="https://github.com/mosaic-group/openfpm/pull/18" target="_blank">▸ PR #18 — Apple Metal GPU 後端（本站建置依據）</a>
+        <a href="https://graphics.stanford.edu/papers/surfacesimplification/" target="_blank">▸ Pauly 等 — 表面變異度（surface variation）出處</a>
+      </div>
+    </div>
+  </details>
+  <div class="grid">
+    <a class="card hasimg" href="gs-particle-analysis.html">
+      <img class="thumb" src="assets/gs-analysis/methods_montage.png" alt="">
+      <div class="ic">🌫️</div><h3>3DGS 去霧五法 × 成效比較（新）</h3>
+      <p><b>各向異性 / 表面保護 / 貼面 surfel / Level-set / 自動門檻</b>五種去霧，同相機軟體 splat 算圖逐一比對霧量與結構保留，附數據表與視覺評比。<b>L3 貼面 surfel</b>綜合最佳（霧 −44%、結構最銳）。</p>
+      <span class="chip">新・研究/分析</span><span class="go">開啟 →</span></a>
+    <a class="card" href="gs-particle-analysis.html">
+      <div class="ic">⚡</div><h3>GPU vs CPU 粒子鄰域分析</h3>
+      <p>把掃描載入 OpenFPM <b>vector_dist_gpu</b>，Metal 上算鄰域密度，與現行 cKDTree 逐點對照：<b>密度相關 1.0000、floater IoU 1.0</b>（正確）、同運算 <b>快 4–25×</b>。六場景全通過。</p>
+      <span class="chip">Metal GPU · 已驗證</span><span class="go">開啟 →</span></a>
+    <a class="card" href="gs-particle-analysis.html">
+      <div class="ic">💧</div><h3>SPH 流體 × 真實教室空間</h3>
+      <p>同一套 OpenFPM，把去霧後掃描表面當邊界，在真實教室幾何裡跑 <b>SPH 流體</b>（Metal GPU）。物理教育情境的延伸雛形。<b>v0・邊界待精修</b>。</p>
+      <span class="chip">空間物理 · 雛形</span><span class="go">開啟 →</span></a>
+  </div>
+
   <footer>
     <div>全程於 Apple Silicon（Mac Studio M4 Max）本機完成，無需 NVIDIA / CUDA。</div>
     <div class="tech"><span>Insta360 Studio</span><span>COLMAP (Metal GPU)</span><span>Brush 3DGS</span>
