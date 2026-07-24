@@ -169,6 +169,18 @@
   <div class="callout warn"><b>診斷：</b>level-set 移除 29.6 萬顆高斯 → 我們的<b>簡易軟體算圖</b>把稀疏點集畫得更暗/更灰 → <b>VLM 把這個「渲染假影」當成霧</b>，反而判它最霧。也就是 <b>VLM 評的是 2D 渲染、不是 3D 場景</b>——正是多模態模型「靠 2D 先驗、缺真 3D 理解」的已知限制。<b>但有訊號：</b>對<b>不改變點數</b>的夾制類（L1/L2/L3/auto），三裁判一致把它們判得比原始乾淨（方向對）。</div>
   <div class="callout"><b>可推廣的教訓：</b>①VLM 評 3D <b>一定要有控制組＋客觀指標校準</b>（本例正是這兩關抓出不可信，否則我就會誤報「L3 最佳=VLM 驗證」）；②凡改變點數/密度的操作，簡易渲染器會產生 VLM 誤讀的假影 → 要用<b>正規 gsplat 渲染器</b>或<b>多視角</b>或<b>成對比較</b>；③成效排名<b>以客觀指標為主、VLM 為輔且需附註</b>。<span class="badge">方法細節見 VLM_FOR_3D.md</span></div>
 
+  <h2 class="sec" style="margin-top:24px">客觀驗證（硬證據，取代不可信的看圖）</h2>
+  <p class="lead">既然「渲染/看圖」類指標（VLM、影像 SSIM）都被簡易渲染器污染，成效與正確性改由<b>幾何/點級</b>的硬證據支撐：</p>
+  <table>
+    <tr><th>驗證</th><th>方法</th><th>結果</th><th>判定</th></tr>
+    <tr><td><b>表面變異度 SV 正確</b></td><td>合成已知幾何（平面/直線/實心球）跑完整 GPU 管線對理論值</td><td>平面 SV=0.000、法向 0.0°；直線 SV=0.000；實心球 SV=0.292（理論 0.333）</td><td class="g">PASS</td></tr>
+    <tr><td><b>法向正確</b></td><td>與 open3d <code>estimate_normals</code> 對照（51.9 萬真表面點）</td><td>中位夾角 <b>0.0°</b>、100% 落在 15° 內</td><td class="g">PASS</td></tr>
+    <tr><td><b>L1 傷到真表面</b></td><td>真表面集（SV&lt;0.06 且高密度，20.3 萬顆）被夾制比例</td><td><b>L1 夾掉 10.0%</b> 真表面高斯</td><td style="color:#ff6b6b;font-weight:700">確認缺陷</td></tr>
+    <tr><td><b>L2/L3 不傷真表面</b></td><td>同上，L2/L3 對真表面的移除+夾制比例</td><td><b>移除 0%、夾制 0%</b>（L3 的 10% 是「貼面對齊」非破壞）</td><td class="g">PASS</td></tr>
+    <tr><td><b>各法不刪真結構</b></td><td>五法對真表面的<b>移除</b>比例（含 level-set）</td><td>全部 <b>0%</b>（level-set 雖刪 29.6 萬點但不含真表面）</td><td class="g">PASS</td></tr>
+  </table>
+  <div class="callout"><b>這才是「L3 最佳、L2/L3 修好 L1 缺陷」的真正依據：</b>不是看圖或 VLM（都被渲染污染），而是<b>可重複計算的幾何量</b>——SV 對合成幾何與 open3d 皆吻合；L1 客觀夾掉 10% 真表面、L2/L3 為 0%。<span class="badge">影像級 SSIM 對所有方法皆 ~0.33（渲染器敏感），與 VLM 同被污染，故不採用</span></div>
+
   <!-- ── 4. 表面感知精修 ── -->
   <h2 class="sec">④ 為何 L2/L3 更準：局部表面變異度</h2>
   <details class="tech-note"><summary>📖 技術說明 — 表面變異度（Pauly）與 GPU 共變異數</summary>
