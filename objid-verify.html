@@ -1,0 +1,178 @@
+<!doctype html><html lang=zh-Hant><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>工坊 3D 物件辨識・請您確認</title>
+<style>
+:root{--bg:#0b0e14;--card:#11151d;--line:#232a36;--ink:#e6edf3;--dim:#8b97a7;--acc:#ff7a18}
+*{box-sizing:border-box} body{background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC",sans-serif;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:22px;margin:.2em 0} h2{font-size:18px;color:var(--acc);border-bottom:1px solid var(--line);padding-bottom:6px;margin-top:34px}
+.lead{color:#cdd6e0} a{color:#4aa8ff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+figure{margin:0;background:#0a0a12;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{width:100%;display:block} figcaption{padding:8px 10px;color:var(--dim);font-size:12.5px}
+.callout{background:#0e1622;border:1px solid #1b3a5a;border-left:4px solid #2b7fff;border-radius:8px;padding:12px 14px;margin:14px 0}
+.callout.warn{background:#20140b;border-color:#5a3a1b;border-left-color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:8px 9px;vertical-align:top;text-align:left}
+th{background:#151a23;color:#cfe} .idc{width:34px} td.idc{text-align:center;color:var(--dim)}
+.dim{color:var(--dim);font-size:12px} .conf{font-size:12px}
+.vote{white-space:nowrap;width:230px} .v{border:1px solid var(--line);background:#151a23;color:var(--ink);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:13px;margin-right:4px}
+.v.on.ok{background:#123a26;border-color:#39d98a;color:#39d98a} .v.on.no{background:#3a1414;border-color:#ff6b6b;color:#ff6b6b}
+.fix{display:block;margin-top:6px;width:100%;background:#0c1017;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:13px}
+.bar{position:sticky;bottom:0;background:linear-gradient(#0b0e14cc,#0b0e14);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 -16px -80px}
+button.big{background:var(--acc);color:#111;border:0;border-radius:8px;padding:10px 15px;font-size:15px;font-weight:700;cursor:pointer}
+#outbox{white-space:pre-wrap;background:#0c1017;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px;font-family:ui-monospace,monospace;font-size:12.5px;display:none}
+.tag{display:inline-block;background:#151a23;border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim);margin-right:6px}
+</style>
+<div class=wrap>
+<h1>🏭 工坊 3D 物件辨識 — 請您確認我看得對不對</h1>
+<p class=lead>我(VLM)用 <b>L3 去霧後的 3D 高斯算圖</b>(俯視／牆面／等角)＋一支<b>顏色+密度幾何偵測器</b>，依外觀與位置自行辨識了房間、窗戶、排煙管與各設備。<b>逐項標了信心，並老實標出哪裡我獨立辨識失敗</b>。請幫我逐列點 ✅對／❌錯，錯的填一下正確答案，最後按「產生修正回覆」把結果貼回給我，我據此修正。</p>
+<p><span class=tag>來源：lt4b（生活科技教室4）</span><span class=tag>1,824,292 高斯</span><span class=tag>座標：X(寬)×Y(此頁俯視縱軸=場景長軸)，高度另計</span></p>
+
+<div class="callout warn"><b>先講清楚可信度：</b>這是<b>模糊點雲算圖</b>上的辨識。<b>可靠</b>的是「格局/拓樸」(房間外形、兩面窗牆、中央成排工作桌、靠牆設備帶)；<b>不可靠</b>的是「細節身份」(某台是什麼機器)與「用顏色鎖定排煙管」——因為算圖顏色被洗淡、單視角雜訊大(與我先前 <a href="gs-particle-analysis.html">F 項 VLM-for-3D 的已知限制</a>一致)。所以下面很多設備我只能給「工作桌/機台」層級的猜測，細節請您裁定。</div>
+
+<h2>① 我看到的畫面（辨識依據）</h2>
+<div class=grid>
+  <figure><img src="assets/gs-analysis/objid_plan.png"><figcaption>俯視標註圖：色=高度(藍地板→紅天花板)。青框=偵測到的 11 個設備區、藍三角=您確認的窗戶、紅星=您確認的排煙管排、橘點=我用顏色自動找的「橘黃天花板」候選(散得很開→鎖不定)。</figcaption></figure>
+  <figure><img src="assets/gs-analysis/objid_top.png"><figcaption>俯視原圖(彩色)：中央可見成排的工作桌(綠色檯面方塊)、四周靠牆設備。</figcaption></figure>
+  <figure><img src="assets/gs-analysis/objid_wall.png"><figcaption>牆面視角：青綠水平帶=成排桌面、下方立柱=桌腳/機台座、後方雜色=層架上的物品。</figcaption></figure>
+  <figure><img src="assets/gs-analysis/objid_iso.png"><figcaption>等角：整體像一間長條形工坊，兩長邊為窗牆。</figcaption></figure>
+</div>
+
+<h2>② 房間・窗戶・排煙管（請確認）</h2>
+<table><tr><th>#</th><th colspan=2>我的判讀</th><th>您的裁定</th></tr><tr data-id="房間" data-label="房間外形/尺寸">
+      <td class="idc">房間</td><td colspan=2>長方形工坊，約 <b>8.1m(寬) × 12.1m(長) × 3.4m(高)</b>；長軸沿南北。 <span class="conf" style="color:#39d98a">〔信心高〕</span></td>
+      <td class="vote"><button class="v ok" onclick="vote(this,'ok')">✅對</button>
+      <button class="v no" onclick="vote(this,'no')">❌錯</button>
+      <input class="fix" placeholder="✏️ 修正"></td></tr><tr data-id="窗牆" data-label="窗戶在&lt;b&gt;兩側長牆&lt;/b&gt;">
+      <td class="idc">窗牆</td><td colspan=2>獨立辨識：左長牆(X≈−3) 與 右長牆(X≈+4) 各有一排、間距大致均勻的窗戶；與您點選的 27 個窗點吻合(同兩面牆)。<b>但我無法從模糊算圖逐一獨立看出每扇窗</b>，僅確認「兩長牆、成排、均勻」這個型態。 <span class="conf" style="color:#ffcf5c">〔信心中〕</span></td>
+      <td class="vote"><button class="v ok" onclick="vote(this,'ok')">✅對</button>
+      <button class="v no" onclick="vote(this,'no')">❌錯</button>
+      <input class="fix" placeholder="✏️ 修正"></td></tr><tr data-id="排煙管" data-label="排煙管＝中央天花板一排(橘黃)">
+      <td class="idc">排煙管</td><td colspan=2>用<b>顏色</b>自動找『橘黃＋貼天花板』點共 1887 顆，但只有 <b>26%</b> 落在您那排 0.6m 內(中位距 2.17m)→ <b>顏色自動辨識沒能乾淨鎖定排煙管</b>(整片暖色天花板都偏橘)。排煙管位置<b>以您的人工標註為準</b>，我獨立確認失敗(誠實負結果)。 <span class="conf" style="color:#ff8f6b">〔信心低〕</span></td>
+      <td class="vote"><button class="v ok" onclick="vote(this,'ok')">✅對</button>
+      <button class="v no" onclick="vote(this,'no')">❌錯</button>
+      <input class="fix" placeholder="✏️ 修正"></td></tr></table>
+
+<h2>③ 設備／機台（11 區・請逐區確認身份）</h2>
+<p class=dim>座標(X,Y) 為此頁俯視座標(公尺)；尺寸/高度為偵測值；主色來自高斯顏色(已被算圖洗淡，僅供參考)。同一「區」可能含不只一台。</p>
+<table><tr><th>#</th><th>位置/尺寸/主色</th><th>我的推測(含信心)</th><th>您的裁定</th></tr><tr data-id="1" data-label="設備#1 中央主工作區：多張工作桌併排（分割時被連成一塊）">
+      <td class="idc"><b>1</b></td>
+      <td>-1.47, -1.58<br><span class=dim>中央·3.3×8.8m·高0.16–0.6·灰/中性</span></td>
+      <td>中央主工作區：多張工作桌併排（分割時被連成一塊） <span class="conf" style="color:#ffcf5c">〔信心中〕</span><br><span class=dim>俯視最大區塊、貫穿中央長軸；牆面視角看到成排桌面（青綠水平帶）＋桌腳立柱。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="2" data-label="設備#2 右側長牆的設備／層架排">
+      <td class="idc"><b>2</b></td>
+      <td>+3.91, -1.59<br><span class=dim>牆邊·1.65×6.05m·高0.16–0.6·灰/中性</span></td>
+      <td>右側長牆的設備／層架排 <span class="conf" style="color:#ffcf5c">〔信心中〕</span><br><span class=dim>沿右窗牆一整條 6m，貼牆，像靠牆機具或收納層架。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="3" data-label="設備#3 底端(南牆)一排機台／桌">
+      <td class="idc"><b>3</b></td>
+      <td>+1.80, -4.90<br><span class=dim>中央·3.85×1.1m·高0.21–0.6·灰/中性</span></td>
+      <td>底端(南牆)一排機台／桌 <span class="conf" style="color:#ffcf5c">〔信心中〕</span><br><span class=dim>底部橫向一排，俯視有數個分立方塊，像沿牆的機器或工作桌。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="4" data-label="設備#4 中央一台較高的機具/桌">
+      <td class="idc"><b>4</b></td>
+      <td>+1.43, -2.15<br><span class=dim>中央·1.1×3.3m·高0.16–0.6·灰/中性</span></td>
+      <td>中央一台較高的機具/桌 <span class="conf" style="color:#ffcf5c">〔信心中低〕</span><br><span class=dim>中央獨立直立區塊、高度到 0.6 帶，可能單一機台。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="5" data-label="設備#5 頂端(北牆)檯面/層架(亮白)">
+      <td class="idc"><b>5</b></td>
+      <td>-1.01, +5.30<br><span class=dim>牆邊·3.85×0.55m·高0.34–0.6·白/亮</span></td>
+      <td>頂端(北牆)檯面/層架(亮白) <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>貼北牆、又薄又長、主色偏亮白，像檯面或白色櫃/層架。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="6" data-label="設備#6 左下角落設備">
+      <td class="idc"><b>6</b></td>
+      <td>-3.21, -5.15<br><span class=dim>牆邊·0.55×1.65m·高0.22–0.6·藍</span></td>
+      <td>左下角落設備 <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>角落小塊、主色偏藍，資訊少。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="7" data-label="設備#7 中央小型機台/桌">
+      <td class="idc"><b>7</b></td>
+      <td>+0.09, +0.35<br><span class=dim>中央·1.65×0.55m·高0.16–0.6·白/亮</span></td>
+      <td>中央小型機台/桌 <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>中央小塊。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="8" data-label="設備#8 中央機台/桌(亮)">
+      <td class="idc"><b>8</b></td>
+      <td>+0.82, +1.82<br><span class=dim>中央·1.1×1.1m·高0.24–0.6·白/亮</span></td>
+      <td>中央機台/桌(亮) <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>中央、主色偏亮。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="9" data-label="設備#9 中央矮桌/工作面">
+      <td class="idc"><b>9</b></td>
+      <td>-0.46, +1.73<br><span class=dim>中央·0.55×1.1m·高0.26–0.3·白/亮</span></td>
+      <td>中央矮桌/工作面 <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>高度帶很矮(0.26–0.30)，可能只是桌面高度的一塊。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="10" data-label="設備#10 北牆邊機台(綠)">
+      <td class="idc"><b>10</b></td>
+      <td>+1.46, +5.85<br><span class=dim>牆邊·1.1×0.55m·高0.37–0.6·綠</span></td>
+      <td>北牆邊機台(綠) <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>貼北牆、主色偏綠。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr><tr data-id="11" data-label="設備#11 中右機台(藍)">
+      <td class="idc"><b>11</b></td>
+      <td>+2.84, +0.08<br><span class=dim>中央·0.55×1.1m·高0.18–0.6·藍</span></td>
+      <td>中右機台(藍) <span class="conf" style="color:#ff8f6b">〔信心低〕</span><br><span class=dim>中右一小塊、主色偏藍。</span></td>
+      <td class="vote">
+        <button class="v ok"  onclick="vote(this,'ok')">✅對</button>
+        <button class="v no"  onclick="vote(this,'no')">❌錯</button>
+        <input class="fix" placeholder="✏️ 修正(這是什麼?)">
+      </td></tr></table>
+
+<div class="callout"><b>沒被框到但我想問您的：</b>(1) 有沒有<b>洗手台/水槽</b>？在哪面牆？(2) <b>電源/配電盤</b>位置？(3) 中央那大塊到底是<b>幾張桌</b>、排成幾排？(4) 底端(南牆)那排是機台還是桌？這些您直接在下面補充框輸入或最後留言即可。</div>
+
+</div>
+<div class=bar>
+  <button class="big" onclick="gen()">📋 產生修正回覆(貼回給我)</button>
+  <span class=dim id=tally>尚未裁定</span>
+  <textarea id=note placeholder="其他補充(水槽/配電/排數…)" style="flex:1;min-width:220px;background:#0c1017;border:1px solid #232a36;color:#e6edf3;border-radius:8px;padding:8px"></textarea>
+</div>
+<div class=wrap><div id=outbox></div></div>
+<script>
+function vote(b,k){const tr=b.closest('tr');tr.querySelectorAll('.v').forEach(x=>x.classList.remove('on'));b.classList.add('on');tally();}
+function tally(){let ok=0,no=0,tot=document.querySelectorAll('tr[data-id]').length;
+  document.querySelectorAll('tr[data-id]').forEach(tr=>{if(tr.querySelector('.v.on.ok'))ok++;if(tr.querySelector('.v.on.no'))no++;});
+  document.getElementById('tally').textContent=`已裁定 ${ok+no}/${tot}（✅${ok} ❌${no}）`;}
+function gen(){let L=['【工坊物件辨識・使用者裁定】'];
+  document.querySelectorAll('tr[data-id]').forEach(tr=>{
+    const id=tr.dataset.id,lab=tr.dataset.label;
+    const ok=tr.querySelector('.v.on.ok'),no=tr.querySelector('.v.on.no'),fix=tr.querySelector('.fix').value.trim();
+    let m=ok?'✅對':no?'❌錯':'—未答';
+    if(fix)m+=' → 修正:'+fix;
+    if(no||fix||ok) L.push(`[${id}] ${lab}: ${m}`);
+  });
+  const nt=document.getElementById('note').value.trim(); if(nt)L.push('補充: '+nt);
+  const box=document.getElementById('outbox');box.style.display='block';box.textContent=L.join('\n');
+  navigator.clipboard&&navigator.clipboard.writeText(L.join('\n')).then(()=>{box.textContent=L.join('\n')+'\n\n(已複製，貼回給 Claude 即可)';});
+  box.scrollIntoView({behavior:'smooth'});
+}
+tally();
+</script></html>
