@@ -200,9 +200,17 @@
   <h2 class="sec">⑤ 延伸：把水灌進真實教室（SPH × 3DGS）</h2>
   <p class="lead">同一套 OpenFPM，把去霧後的掃描表面當<b>邊界</b>，在真實教室幾何裡跑 <b>SPH 流體</b>——現行管線做不到的能力，對應物理教育情境。</p>
   <figure class="big"><img src="assets/gs-analysis/room_sph.png" alt="SPH in room">
-    <figcaption><b>SPH-in-room v0</b>：水在掃描教室幾何裡崩塌流動（綠＝掃描邊界，色＝水速），全在 Metal GPU。<span class="badge">v0・邊界待精修</span> 目前邊界取樣較稀疏（水會漏），下一步改用 watertight 碰撞殼取樣。</figcaption></figure>
+    <figcaption><b>SPH-in-room v0</b>：水在掃描教室幾何裡崩塌流動（綠＝掃描邊界，色＝水速），全在 Metal GPU。<span class="badge">v0</span> 驗證後發現：<b>「漏水=邊界有洞」是錯誤歸因</b>——做了幾何水密邊界＋加厚到 3 層，保留率仍 18% 不變，真因是<b>數值不穩</b>（密度準則移除粒子），要靠 SPH 穩定度調校而非邊界幾何。驗證先行抓出了這個誤判。</figcaption></figure>
 
-  <div class="callout warn"><b>誠實界線：</b>粒子法是強力的<b>後處理分析與修正</b>（偵測＋移除/夾制/貼面），不是重建。要「不長出霧」需回訓練期（深度正則／FSGS／DNGaussian）。本頁的去霧屬後處理，與現行 <code>deneedle</code> 同性質，但更快（Metal）、多訊號、且對 CPU 逐點驗證。視覺最終驗收請把去霧版載進 splat viewer 走第一人稱。</div>
+  <!-- ⑥ 工坊 3D 氣流 -->
+  <h2 class="sec">⑥ 工坊 3D 氣流分析（勢流）</h2>
+  <p class="lead">既然有完整 3D 幾何，就做 3D 的氣流：在房間 5 萬個空氣體素上解勢流（Laplace ∇²φ=0），<b>窗戶=進氣、天花板排煙管=出氣、牆/地/家具=不透氣</b>，速度 v=−∇φ，再放示蹤粒子畫 3D 流線。<b>窗戶與排煙管位置由使用者在互動點選器上確認</b>（兩側長牆 27 個窗戶點＋中央天花板一排 6 個排煙管點）。</p>
+  <figure class="big"><img src="assets/gs-analysis/airflow3d.png" alt="workshop 3D airflow">
+    <figcaption><b>工坊 3D 氣流</b>（真實確認位置）。左＝3D 流線：空氣從<b>兩側窗</b>進來、全部<b>上抽到中央天花板那排排煙管</b>；右＝過排煙管的垂直剖面，清楚的「兩側進氣→中央上抽」通風型態，主流向<b>仰角 +69°（強烈向上）</b>——正是抽油煙該有的：把煙往上帶離呼吸區。</figcaption></figure>
+  <div class="callout"><b>驗證：</b>流場由諧函數 φ 構造 ⇒ 連續意義上<b>不可壓縮（∇·v≈0）</b>；可靠輸出是<b>流向與拓樸</b>（兩側進氣→中央上抽），非局部速度大小（∇·v 離散殘差出現在障礙物邊界）。位置經使用者點選確認。</div>
+  <div class="callout warn"><b>誠實界線：</b>這是<b>勢流模型估計、非實測</b>——真實氣流還受排風扇動力、門開關、熱浮力、空調影響（那些要完整黏性 CFD／Navier–Stokes）。此處給的是「若窗進、排煙管抽，主對流路徑與方向大致如何」。</div>
+
+  <div class="callout warn" style="margin-top:20px"><b>去霧部分的誠實界線：</b>粒子法是強力的<b>後處理分析與修正</b>（偵測＋移除/夾制/貼面），不是重建。要「不長出霧」需回訓練期（深度正則／FSGS／DNGaussian）。本頁的去霧屬後處理，與現行 <code>deneedle</code> 同性質，但更快（Metal）、多訊號、且對 CPU 逐點驗證。</div>
 
   <footer>
     <div>全程於 Apple Silicon（Mac Studio M4 Max）本機完成，無需 NVIDIA / CUDA。分析可離線重跑。</div>
