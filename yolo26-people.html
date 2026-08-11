@@ -91,9 +91,27 @@
     <tr><td>2</td><td>儲物·作業</td><td>~8 m</td><td class="ok">4.3 m</td></tr>
     <tr><td>3</td><td>投影機·白板</td><td>~8 m</td><td class="ok">6.0 m</td></tr>
   </table>
-  <p class="mut">尚存不確定性：相機位姿為估計值、bbox 牆距略大於實際牆面。要再精確，下一步是從 cam5 實測位姿渲染 3DGS/LiDAR 靜態深度當 ground truth。但差異化定位已可用。</p>
+  <p class="mut">尚存不確定性：相機位姿為估計值、bbox 牆距略大於實際牆面。要再精確，下一步是從 cam5 實測位姿渲染 3DGS/LiDAR 靜態深度當 ground truth ——<b>已執行，見下節（含誠實結論）</b>。</p>
 
-  <h2>六、pibook Hailo？</h2>
+  <h2>六、3DGS 靜態深度真校正（已渲染 + 誠實結論）</h2>
+  <p>把 lt4 的 LiDAR/3DGS 壓縮 splat（<code>lt4_lidar_walk.compressed.ply</code>，PlayCanvas 格式、<b>110 萬點</b>）解碼，從估計 cam5 位姿渲染等距柱狀（equirectangular）靜態深度，抽出<b>逐方位角真實牆距 D_wall(θ)</b> 取代原本的 bbox 對角常數。</p>
+  <figure><img src="assets/lt4_depth_pano.jpg" alt="3DGS equirectangular static depth">
+    <figcaption>從 cam5 位姿渲染的 3DGS 靜態深度全景（近面 z-buffer，TURBO：藍近→紅遠）。中帶＝牆、下方弧帶＝樓面。</figcaption></figure>
+  <figure><img src="assets/lt4_dwall_topdown.jpg" alt="D_wall room footprint">
+    <figcaption>逐方位角牆距 D_wall(θ)＝<b>1.9–6.3m</b> 的房間不規則輪廓——真實幾何，非常數。</figcaption></figure>
+  <div class="box"><b>做成且可信</b>：① 解碼點雲 room bbox 合理（≈9×3.8×13.4m）；② cam5 位姿 X=0.12 Y=1.17 Z=0.17 → <span class="ok">驗證「相機≈場景原點」</span>（水平中位數就落在原點）；③ 真實 D_wall(θ) 房間輪廓取代 bbox 常數。</div>
+  <div class="box" style="border-left-color:#d29922"><b>找到的真根因阻礙（誠實）</b>：把 D_wall（splat 世界方位角）映到相機影像方位角，用外觀互相關是<b>欠定</b>的。四種獨立線索的全域偏移：
+    <table style="margin:8px 0">
+      <tr><th>對位線索</th><th>lag</th><th>手性</th><th>corr</th></tr>
+      <tr><td>亮度</td><td>184°</td><td>翻</td><td>0.46</td></tr>
+      <tr><td>過曝(窗)</td><td>29°</td><td>不翻</td><td>0.35</td></tr>
+      <tr><td>藍−紅(日光)</td><td>353°</td><td>翻</td><td>0.37</td></tr>
+      <tr><td>結構邊緣</td><td>196°</td><td>不翻</td><td>0.22</td></tr>
+    </table>
+    lag 分散 <span class="no">std=115°</span>、corr 全弱。原因：亮≠遠（白板亮但近）、環景深度是柔和稀疏場、無銳利對應特徵。</div>
+  <p><b>結論</b>：D_wall 房間輪廓與 cam 位姿<span class="ok">可信</span>；但逐人<b>絕對</b>公制距離受全域偏航歧義影響，<span class="no">無法只靠影像↔深度外觀比對定案</span>。要真正精準化，需<b>實體量測 2–3 個地標距離</b>當錨點（或重跑原 δ 註冊的 LiDAR-render 管線取回座標約定）。差異化/相對定位與房間尺度包絡是可信的部分——不誇大成假精度。</p>
+
+  <h2>七、pibook Hailo？</h2>
   <p>pibook 有 Hailo-8（26 TOPS），但現有 <code>.hef</code> 只到 YOLOv5/6/8/x、<span class="no">沒有也難編 YOLO26</span>（需 x86 DFC、新 NMS-free/depth 架構支援未定），且 Hailo 正被現役 camera_hub 佔用。要 Hailo 加速偵測，現實選擇是沿用 YOLOv8s。</p>
 
   <div class="foot">
