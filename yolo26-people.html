@@ -79,12 +79,19 @@
     <li><b>沿用</b>：既有 <code>lt4_register_params</code> 方位角 δ(θ) 對位、<code>lt4_flow</code> 分區語意，無縫接上。</li>
   </ul>
 
-  <h2>五、誠實限制與下一步</h2>
-  <div class="box">
-    <p><span class="warn">環景深度是柔和場、非公制精準</span>：3 人距離都落在 ~8m 未明顯分離。簡單的房間尺度仿射校正實測會跑出負值（兩幀分佈不同、環景深度本非公制）而<span class="no">失敗</span>。</p>
-    <p><span class="ok">可靠的訊號是「背景相對」</span>：每人都比後方牆近約 +1.5m（人必在背景之前）→ 判定站在工作區。</p>
-    <p><b>真正的公制校正</b>：從 cam5 位姿渲染 3DGS/LiDAR 靜態深度當 ground truth，修正 YOLO26-depth 的環景偏差。這是把 POC 變產品的關鍵下一步。</p>
-  </div>
+  <h2>五、幾何校正（已做，成功）</h2>
+  <p>原始環景深度是「柔和場」→ 3 人距離都擠在 ~8m、無法分離；簡單的仿射校正實測還會跑出負值而<span class="no">失敗</span>。改用<b>原理性校正</b>：</p>
+  <div class="box"><b>真實距離 = 幾何牆距(場景 bbox) × (YOLO26 人深度 ÷ 背景深度)</b><br>
+  比值(人/牆)錨定「人在牆前多近」（比絕對深度可靠），幾何牆距提供隨方位變化的真實尺度；相機≈場景原點（經機台距離 1.8–11.1m 驗證合理）。</div>
+  <figure><img src="assets/yolo26_calibrated.jpg" alt="calibration before/after">
+    <figcaption>校正前後對照：左＝原始（全 ~8m 擠成一團）、右＝<span class="ok">幾何校正後 #1 3.7m / #2 4.3m / #3 6.0m（離散度 0.2→2.3m，成功分離）</span>。</figcaption></figure>
+  <table>
+    <tr><th>#</th><th>分區</th><th>原始</th><th>幾何校正後</th></tr>
+    <tr><td>1</td><td>儲物·作業</td><td>~8 m</td><td class="ok">3.7 m</td></tr>
+    <tr><td>2</td><td>儲物·作業</td><td>~8 m</td><td class="ok">4.3 m</td></tr>
+    <tr><td>3</td><td>投影機·白板</td><td>~8 m</td><td class="ok">6.0 m</td></tr>
+  </table>
+  <p class="mut">尚存不確定性：相機位姿為估計值、bbox 牆距略大於實際牆面。要再精確，下一步是從 cam5 實測位姿渲染 3DGS/LiDAR 靜態深度當 ground truth。但差異化定位已可用。</p>
 
   <h2>六、pibook Hailo？</h2>
   <p>pibook 有 Hailo-8（26 TOPS），但現有 <code>.hef</code> 只到 YOLOv5/6/8/x、<span class="no">沒有也難編 YOLO26</span>（需 x86 DFC、新 NMS-free/depth 架構支援未定），且 Hailo 正被現役 camera_hub 佔用。要 Hailo 加速偵測，現實選擇是沿用 YOLOv8s。</p>
