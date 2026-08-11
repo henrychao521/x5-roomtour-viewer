@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YOLO26 偵測+深度 · 生科教室四人流定位</title>
+<style>
+  :root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--accent:#ff7a18;--mut:#8b97a7;--ink:#e6edf3;--r:14px}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.7}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:12px 18px;background:rgba(11,14,20,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+  header .t{font-weight:750}
+  main{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+  h1{font-size:27px;margin:8px 0 4px;line-height:1.25}
+  .sub{color:var(--mut);font-size:14px;margin-bottom:20px}
+  .tag{display:inline-block;background:#1b2230;border:1px solid var(--accent);color:var(--accent);
+    border-radius:14px;padding:1px 10px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:8px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);color:var(--accent)}
+  figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  figure img{width:100%;display:block}
+  figcaption{padding:9px 13px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 11px;text-align:left}
+  th{background:var(--bg2);color:var(--mut)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  .box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:13px 16px;margin:14px 0;font-size:14px}
+  .ok{color:#3fb950;font-weight:700}.no{color:#f85149;font-weight:700}.warn{color:#d29922;font-weight:700}
+  code{background:#1b2230;padding:1px 6px;border-radius:5px;font-size:.85em;color:#ffa657}
+  ul{padding-left:20px}
+  .foot{color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style></head>
+<body>
+<header>
+  <span class="t">🎯 YOLO26 × 生科教室四人流</span>
+  <a href="index.html">← 回總覽</a>
+</header>
+<main>
+  <span class="tag">影像分析 · 2026-07</span>
+  <h1>YOLO26 偵測 + 單目深度<br>把人流定位升級為「方位 × 距離」</h1>
+  <p class="sub">把 Ultralytics YOLO26（2026-01 釋出，NMS-free）的偵測與單目深度，接進生科教室四（lt4）既有的 360° 環景人流管線，並用真實上課影像驗證。</p>
+
+  <h2>一、YOLO26 效能（Mac · Apple Silicon MPS）</h2>
+  <table>
+    <tr><th>模型</th><th>MPS</th><th>CPU</th></tr>
+    <tr><td>yolo26n 偵測</td><td><b>5.0 ms / 201.8 FPS</b></td><td>6.8 ms / 147 FPS</td></tr>
+    <tr><td>yolo26n-depth 深度</td><td><b>4.6 ms / 215.8 FPS</b></td><td>9.0 ms / 111 FPS</td></tr>
+  </table>
+  <div class="box">運算完全不是瓶頸，遠超即時。Mac 適合當中央推論伺服器。</div>
+
+  <h2>二、空教室：偵測 + 深度</h2>
+  <figure>
+    <img src="assets/yolo26_empty_detect_depth.jpg" alt="empty classroom detect + depth">
+    <figcaption>① 環景原圖 ② YOLO26 切塊偵測（chair·tv·plant，綠框）③ YOLO26-depth 深度圖。<b>發現</b>：1920×248 環景直接跑偵測不到東西（被壓扁）→ 必須切塊；深度呈 8.7–11.5m 房間尺度。</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/yolo26_depth_topdown.jpg" alt="depth top-down">
+    <figcaption>方位角 × 深度的俯視投影 → 類圓閉環，證明幾何可行（可相對定位），但環景深度是「柔和距離場」、非逐物件銳利。</figcaption>
+  </figure>
+
+  <h2>三、完整 POC：真實上課影像（3 位學生）</h2>
+  <p class="sub">素材：<code>攝影機5_20260520_111000@300s</code>（5/20 上課日）。<b>為保護學生隱私，人物已打馬賽克；未打碼原檔僅存本機。</b></p>
+  <div class="grid2">
+    <figure><img src="assets/yolo26_people_blur.jpg" alt="detected people (blurred)"><figcaption>YOLO26 偵測到 3 人（已馬賽克）</figcaption></figure>
+    <figure><img src="assets/yolo26_people_topdown.jpg" alt="people top-down"><figcaption>相機中心俯視：分區扇形 + 距離圈 + 人物定位點</figcaption></figure>
+  </div>
+  <table>
+    <tr><th>#</th><th>方位角 → 分區（既有語意）</th><th>距離（深度新增）</th><th>比背景牆近</th><th>conf</th></tr>
+    <tr><td>1</td><td>223° · 儲物·作業</td><td>~8 m（原始）</td><td>+1.4 m</td><td>0.82</td></tr>
+    <tr><td>2</td><td>247° · 儲物·作業</td><td>~8 m</td><td>+1.6 m</td><td>0.46</td></tr>
+    <tr><td>3</td><td>267° · 投影機·白板</td><td>~8 m</td><td>+1.7 m</td><td>0.82</td></tr>
+  </table>
+
+  <h2>四、相對既有管線的升級</h2>
+  <ul>
+    <li><b>偵測器</b>：mediapipe EfficientDet-lite0 → <span class="ok">YOLO26</span>（更準、多類別）。</li>
+    <li><b>定位</b>：原「方位角分區（徑向靠魚眼幾何、不可靠）」→ 加上 <span class="ok">YOLO26-depth 學習式距離</span>，每人得「哪一區 + 多遠」。</li>
+    <li><b>沿用</b>：既有 <code>lt4_register_params</code> 方位角 δ(θ) 對位、<code>lt4_flow</code> 分區語意，無縫接上。</li>
+  </ul>
+
+  <h2>五、誠實限制與下一步</h2>
+  <div class="box">
+    <p><span class="warn">環景深度是柔和場、非公制精準</span>：3 人距離都落在 ~8m 未明顯分離。簡單的房間尺度仿射校正實測會跑出負值（兩幀分佈不同、環景深度本非公制）而<span class="no">失敗</span>。</p>
+    <p><span class="ok">可靠的訊號是「背景相對」</span>：每人都比後方牆近約 +1.5m（人必在背景之前）→ 判定站在工作區。</p>
+    <p><b>真正的公制校正</b>：從 cam5 位姿渲染 3DGS/LiDAR 靜態深度當 ground truth，修正 YOLO26-depth 的環景偏差。這是把 POC 變產品的關鍵下一步。</p>
+  </div>
+
+  <h2>六、pibook Hailo？</h2>
+  <p>pibook 有 Hailo-8（26 TOPS），但現有 <code>.hef</code> 只到 YOLOv5/6/8/x、<span class="no">沒有也難編 YOLO26</span>（需 x86 DFC、新 NMS-free/depth 架構支援未定），且 Hailo 正被現役 camera_hub 佔用。要 Hailo 加速偵測，現實選擇是沿用 YOLOv8s。</p>
+
+  <div class="foot">
+    相關：<a href="index.html">總覽</a> · 生科教室四（lt4）3DGS 場景與既有人流分析 ｜ 模型：Ultralytics YOLO26（<a href="https://docs.ultralytics.com/tasks/depth" target="_blank">深度任務文件</a>）｜ 推論程式碼私有，本頁僅呈現成果。
+  </div>
+</main>
+</body>
+</html>
