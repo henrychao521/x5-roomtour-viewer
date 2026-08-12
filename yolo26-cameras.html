@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>四台校園攝影機 × YOLO26-depth 可行性實測</title>
+<style>
+  :root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--accent:#ff7a18;--mut:#8b97a7;--ink:#e6edf3;--r:14px}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC",system-ui;line-height:1.7}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:12px 18px;background:rgba(11,14,20,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+  header .t{font-weight:750}
+  main{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+  h1{font-size:26px;margin:8px 0 4px;line-height:1.3}
+  .sub{color:var(--mut);font-size:14px;margin-bottom:20px}
+  .tag{display:inline-block;background:#1b2230;border:1px solid var(--accent);color:var(--accent);
+    border-radius:14px;padding:1px 10px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:8px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);color:var(--accent)}
+  figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  figure img{width:100%;display:block}
+  figcaption{padding:9px 13px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 11px;text-align:left}
+  th{background:var(--bg2);color:var(--mut)}
+  .box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:13px 16px;margin:14px 0;font-size:14px}
+  .ok{color:#3fb950;font-weight:700}.no{color:#f85149;font-weight:700}.warn{color:#d29922;font-weight:700}
+  code{background:#1b2230;padding:1px 6px;border-radius:5px;font-size:.85em;color:#ffa657}
+  ul{padding-left:20px}
+  .bar{display:inline-block;height:9px;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:4px;vertical-align:middle}
+  .foot{color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style></head>
+<body>
+<header>
+  <span class="t">📷 校園攝影機 × YOLO26-depth</span>
+  <a href="index.html">← 回總覽</a>
+</header>
+<main>
+  <span class="tag">影像分析 · 2026-08-12</span>
+  <h1>四台校園攝影機的 YOLO26-depth 可行性實測<br>為什麼環景條測不準、透視鏡頭卻可以</h1>
+  <p class="sub">承<a href="yolo26-people.html">生科教室四人流定位</a>：那台 cam5 的環景深度一直是「柔和平場」，逐人距離的鑑別度幾乎全來自方位角。這裡把校內其餘攝影機都拉進來實測，找出<b>問題出在鏡頭型式、不是模型</b>。</p>
+
+  <h2>一、受測的四台攝影機</h2>
+  <p>三台 Raspberry Pi 上的四路錄影，直接從各機遠端抽幀（各機都有 ffmpeg，只回傳 JPEG，不搬整支影片）：</p>
+  <table>
+    <tr><th>代號</th><th>主機</th><th>解析度</th><th>鏡頭型式</th><th>場域</th></tr>
+    <tr><td>cam2</td><td>picase</td><td>640×480</td><td class="ok">透視</td><td>電腦教室</td></tr>
+    <tr><td>homeec</td><td>cklivingtech5</td><td>640×480 MJPEG</td><td class="ok">透視</td><td>家政/生科</td></tr>
+    <tr><td>cam3</td><td>picase（HWA360）</td><td>3840×500</td><td class="warn">環景條</td><td>電腦教室</td></tr>
+    <tr><td>cam5</td><td>cklivingtech2（j5create 360）</td><td>1920×248</td><td class="warn">環景條</td><td>生科教室四</td></tr>
+  </table>
+  <div class="box">抽幀時踩到的坑：<b>最新的那支錄影檔一定失敗</b>（<code>moov atom not found</code>）——還在錄的 mp4 尚未寫入 moov atom。要取倒數第 3～4 支已完成的檔。</div>
+
+  <h2>二、量化指標：深度的「相對動態範圍」</h2>
+  <p>單看深度值域會被場景大小混淆，所以用 <code>(p98 − p2) ÷ 中位數</code>：<b>柔和平場 → 接近 0；有真實前後景結構 → 明顯較大</b>。</p>
+  <table>
+    <tr><th>攝影機</th><th>鏡頭</th><th>深度值域</th><th>相對動態範圍</th><th>空間梯度</th></tr>
+    <tr><td>cam2 電腦教室</td><td class="ok">透視</td><td>3.3–9.1 m</td><td class="ok">1.102 <span class="bar" style="width:132px"></span></td><td>0.0249</td></tr>
+    <tr><td>homeec</td><td class="ok">透視</td><td>2.6–6.3 m</td><td class="ok">0.750 <span class="bar" style="width:90px"></span></td><td>0.0102</td></tr>
+    <tr><td>cam3 HWA360</td><td class="warn">環景條</td><td>11.8–18.2 m</td><td class="warn">0.441 <span class="bar" style="width:53px"></span></td><td>0.0113</td></tr>
+    <tr><td>cam5 生科四</td><td class="warn">環景條</td><td>1.6–1.8 m</td><td class="no">0.155 <span class="bar" style="width:19px"></span></td><td>0.0013</td></tr>
+  </table>
+  <figure>
+    <img src="assets/pi_cam_depth_compare.jpg" alt="four cameras: RGB vs YOLO26 depth">
+    <figcaption>左＝原始畫面，右＝YOLO26-depth（TURBO：藍近→紅遠）。上兩排透視鏡頭的深度圖<b>解得出個別螢幕、地板漸層、牆面前後</b>；最下排 cam5 幾乎只是一條水平漸層，沒有物件結構——這正是逐人距離分不開的原因。</figcaption>
+  </figure>
+
+  <h2>三、結論：問題在鏡頭型式，不在模型</h2>
+  <div class="box"><b>透視鏡頭的相對動態範圍是 cam5 環景條的 5–7 倍。</b>YOLO26-depth 是用<b>透視影像</b>訓練的；等距柱狀／環帶去扭曲的影像在幾何上與訓練分布不符，模型只能吐出柔和距離場。
+    <ul>
+      <li><b>cam2 / homeec（透視）</b>：<span class="ok">可以直接用</span>，不需要生科四那套 D_wall 幾何校正。</li>
+      <li><b>cam3（3840×500 環景）</b>：介於中間（0.441）。同為環景但比 cam5 好，合理推測是<b>解析度高得多</b>，縮放進 640 網格後保留較多結構。</li>
+      <li><b>cam5（1920×248 環景）</b>：最差，且偵測要<b>切塊</b>才抓得到東西。</li>
+    </ul>
+  </div>
+  <p>另一個實測差異：<b>偵測</b>在透視鏡頭上整張直接跑就有結果（homeec 抓到 clock/tv）；環景條整張跑一律 0，cam3 切 5 塊後才抓到 chair / potted plant。與先前 cam5 的結論一致。</p>
+
+  <h2>四、對後續人流定位的意義</h2>
+  <ul>
+    <li>要做<b>可信的逐人絕對距離</b>，優先用透視鏡頭那兩台，而不是繼續在環景條上補救。</li>
+    <li>生科四若要留在環景，逐人徑向就得靠幾何（腳點俯角）而非深度模型——但那需要腳在畫面內，<a href="yolo26-people.html#close">前一頁</a>已實測三位學生的腳都被畫面底邊截斷。</li>
+    <li>cam3 的高解析環景值得單獨再試：它同時具備 360° 覆蓋與尚可的深度結構。</li>
+  </ul>
+
+  <h2>五、順帶發現的維運問題</h2>
+  <div class="box" style="border-left-color:#f85149"><b>picase 系統碟 100% 滿（0 bytes 可用，117G 已用 112G）</b>——cam3 的 <code>recordings3</code> 就佔 97G。實測時只能把暫存檔寫到 <code>/dev/shm</code>。這會讓新的錄影寫入失敗，建議優先處理（設備清單的自動巡檢也已標為最高優先項）。</div>
+
+  <div class="foot">
+    相關：<a href="index.html">總覽</a> · <a href="yolo26-people.html">生科教室四人流定位（含閉合對位）</a>｜ 模型：Ultralytics YOLO26 ／ yolo26n-depth｜
+    影像為暑假期間空教室，已用 conf=0.10 低門檻逐張稽核確認<b>無人物入鏡</b>；推論程式碼與攝影機存取憑證均未公開。
+  </div>
+</main>
+</body>
+</html>
