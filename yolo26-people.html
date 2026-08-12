@@ -37,9 +37,10 @@
   <a href="index.html">← 回總覽</a>
 </header>
 <main>
-  <span class="tag">影像分析 · 2026-07</span>
+  <span class="tag">影像分析 · 2026-07 → 08</span>
   <h1>YOLO26 偵測 + 單目深度<br>把人流定位升級為「方位 × 距離」</h1>
-  <p class="sub">把 Ultralytics YOLO26（2026-01 釋出，NMS-free）的偵測與單目深度，接進生科教室四（lt4）既有的 360° 環景人流管線，並用真實上課影像驗證。</p>
+  <p class="sub">把 Ultralytics YOLO26（2026-01 釋出，NMS-free）的偵測與單目深度，接進生科教室四（lt4）既有的 360° 環景人流管線，並用真實上課影像驗證。
+    <br><b>2026-08-12 更新</b>：<a href="#close">第八節</a>用房間四角後方交會<b>閉合了 world↔image 對位</b>（RMS 3.5°，兩條獨立 D_wall 相關 +0.971），並推翻了第七節的房間尺寸與「相機≈場景原點」假設。</p>
 
   <h2>一、YOLO26 效能（Mac · Apple Silicon MPS）</h2>
   <table>
@@ -99,7 +100,7 @@
     <figcaption>從 cam5 位姿渲染的 3DGS 靜態深度全景（近面 z-buffer，TURBO：藍近→紅遠）。中帶＝牆、下方弧帶＝樓面。</figcaption></figure>
   <figure><img src="assets/lt4_dwall_topdown.jpg" alt="D_wall room footprint">
     <figcaption>逐方位角牆距 D_wall(θ)＝<b>1.9–6.3m</b> 的房間不規則輪廓——真實幾何，非常數。</figcaption></figure>
-  <div class="box"><b>做成且可信</b>：① 解碼點雲 room bbox 合理（≈9×3.8×13.4m）；② cam5 位姿 X=0.12 Y=1.17 Z=0.17 → <span class="ok">驗證「相機≈場景原點」</span>（水平中位數就落在原點）；③ 真實 D_wall(θ) 房間輪廓取代 bbox 常數。</div>
+  <div class="box"><b>做成且可信</b>：① 解碼點雲 room bbox 合理（≈9×3.8×13.4m）；② cam5 位姿 X=0.12 Y=1.17 Z=0.17 → 當時據此認為「相機≈場景原點」（<span class="no">⚠ 第八節後方交會已推翻：相機明顯偏心，且 Y 被放到了地板側</span>）；③ 真實 D_wall(θ) 房間輪廓取代 bbox 常數。</div>
   <div class="box" style="border-left-color:#d29922"><b>找到的真根因阻礙（誠實）</b>：把 D_wall（splat 世界方位角）映到相機影像方位角，用外觀互相關是<b>欠定</b>的。四種獨立線索的全域偏移：
     <table style="margin:8px 0">
       <tr><th>對位線索</th><th>lag</th><th>手性</th><th>corr</th></tr>
@@ -111,14 +112,68 @@
     lag 分散 <span class="no">std=115°</span>、corr 全弱。原因：亮≠遠（白板亮但近）、環景深度是柔和稀疏場、無銳利對應特徵。</div>
   <p><b>結論</b>：D_wall 房間輪廓與 cam 位姿<span class="ok">可信</span>；但逐人<b>絕對</b>公制距離受全域偏航歧義影響，<span class="no">無法只靠影像↔深度外觀比對定案</span>。要真正精準化，需地標錨點閉合對位——見下節。</p>
 
-  <h2>七、交叉驗證：實測物件尺寸確認 D_wall 是真公制</h2>
+  <h2>七、交叉驗證：實測物件尺寸（⚠ 結論已被第八節修正）</h2>
   <p>既有 <code>measure_space.py</code> 用<b>天花板 T8 日光燈管（4ft=1.22m 全球標準）</b>當參考物標定 3DGS 場景比例，產出公制平面圖 <code>arch_elements.json</code>：k=0.859 m/單位、<b>室內淨 8.82×10.48m ≈93㎡</b>、牆厚 0.15m、門/黑板/12 燈具、<b>8 件家具足跡</b>（工作檯連排 7.58×1.91m…）。</p>
   <figure><img src="assets/floorplan_lt4_arch.png" alt="measured metric floorplan">
     <figcaption>燈管參考物標定的公制平面圖（家具足跡+尺寸標註）。這是「測過的物件尺寸」。</figcaption></figure>
-  <div class="box"><b>交叉驗證</b>：我解碼的 <code>lt4_lidar_walk</code> 點雲 X 跨距 <b>8.88m ≈ 實測 8.82m（差 &lt;1%）</b> → <span class="ok">證明該 splat 已是公制，D_wall 的 1.9–6.3m 是真公尺</span>，被獨立參考物量測確認，非任意場景單位。</div>
-  <div class="box" style="border-left-color:#3fb950"><b>對「對位欠定」的意義（好消息）</b>：先前結論說「需實體量測地標」——<b>地標其實早已測</b>（arch_elements 的 8 家具+黑板+門窗世界座標）。下一步不再是量測，而是把這些已知物件在相機影像中逐一標定 image-az → 與 world-az 配對解全域旋轉，即可閉合對位、給出可信逐人絕對距離。<b>資料齊備，屬純標定工作。</b></div>
+  <div class="box"><b>當時的交叉驗證</b>：解碼的 <code>lt4_lidar_walk</code> 點雲 X 跨距 <b>8.88m ≈ 8.82m（差 &lt;1%）</b>，據此宣稱 splat 已是公制。</div>
+  <div class="box" style="border-left-color:#f85149"><b>⚠ 本節已於第八節被推翻（保留原文以存記錄）</b>：這個「&lt;1%」有兩個瑕疵——① 只比對了<b>一個軸</b>；另一軸（Z）點雲 13.4m vs 實測 10.48m，差 <b>28%</b>。② 更關鍵：<code>measure_space.py</code> 用<b>軸對齊</b>的牆面密度剖面量房間，但這個房間在 ply 座標中是<b>斜的（約 12.5°）</b>，量到的其實是<b>外接矩形</b>而非真實牆距。以 Manhattan frame 重新擬合後，真實室內為 <b>6.21 × 10.87 m（≈67.5㎡）</b>，不是 8.82×10.48（≈93㎡）。<br>公制尺度本身仍然成立（見第八節：實測淨高 2.73m 為獨立佐證），但<b>房間尺寸與長寬比被高估</b>，這正是後續對位一直算不通的原因之一。</div>
 
-  <h2>八、pibook Hailo？</h2>
+  <h2 id="close">八、閉合對位（2026-08-12）：從「欠定」到 RMS 3.5°</h2>
+  <p>目標是把<b>影像方位角 ↔ 世界方位角</b>的全域旋轉與手性定死。做法不是拿外觀去對相關（第六節已證實欠定），而是<b>用可在影像中明確指認的房間幾何做後方交會（resection）</b>。</p>
+
+  <h3 style="font-size:16px;color:#8b97a7;margin:22px 0 6px">9-1　先修掉兩個上游錯誤</h3>
+  <table>
+    <tr><th>錯誤</th><th>影響</th><th>修正</th></tr>
+    <tr><td>房間矩形取自<b>軸對齊</b>密度剖面，但房間在 ply 中斜 12.5°</td><td>量到外接矩形；長寬比 0.84 vs 真實 0.57。用它做對位<b>在幾何上無解</b>（任何室內相機位置都湊不出觀測到的四牆張角）</td><td>Manhattan frame 擬合 → 真實 <b>6.21 × 10.87 m</b>、淨高 <b>2.73 m</b></td></tr>
+    <tr><td><code>render_depth_pano.py</code> 取 <code>camY = percentile(Y,2) + 2.75</code></td><td>y-down 場景中地板在<b>大 y</b> 側，這個式子把相機放到了<b>地板側</b>（y=+1.17，地板 y=+1.40），而非天花板（y≈−1.33）</td><td>改為天花板下方 10 cm；仰角帶篩選才選到正確的牆面點</td></tr>
+  </table>
+  <div class="box">淨高量到 <b>2.73 m</b>（教室典型值）是「這個 splat 已是公制」的<b>獨立佐證</b>，比原本單軸比對 bbox 跨距可靠——它同時檢核了尺度與垂直方向。</div>
+
+  <h3 style="font-size:16px;color:#8b97a7;margin:22px 0 6px">9-2　四個房間角落 → 後方交會</h3>
+  <p>在環景中逐一指認四個<b>牆與牆的轉角</b>（比家具可靠：家具會移動、輪廓模糊，牆角是建築固定件）：</p>
+  <table>
+    <tr><th>角落</th><th>影像方位角</th><th>指認依據</th><th>殘差</th></tr>
+    <tr><td>A</td><td>64° ±4°</td><td>窗牆 → 素白牆（鑽床列所在）</td><td>−6.0°</td></tr>
+    <tr><td>B</td><td>125° ±3°</td><td>素白牆 → 玻璃隔間牆</td><td>+2.0°</td></tr>
+    <tr><td>C</td><td>269° ±2°</td><td>洞洞板工具牆 → 前牆（布幕/白板）</td><td>−1.9°</td></tr>
+    <tr><td>D</td><td>314° ±2°</td><td>前牆 → 走廊窗牆</td><td>+2.5°</td></tr>
+  </table>
+  <figure><img src="assets/lt4_pano_annot.jpg" alt="panorama with calibrated corners">
+    <figcaption>環景與標定的四個角落 A–D（黃線）。三位學生已<b>整條打碼</b>；未打碼原檔僅存本機。</figcaption></figure>
+  <div class="box"><b>解</b>：8 種對應假設（4 個循環起點 × 2 手性）中，唯一收斂解 <span class="ok">RMS 殘差 3.51°</span>，其餘 ≥31°。<br>
+    手性 = <b>鏡射</b>（world_az = −image_az + 13.2°）；相機在房間座標 <b>U=−1.26, V=−0.48 m</b>，即離四面牆 4.30 / 6.58 / <b>1.89</b> / 4.32 m。<br>
+    <b>順帶推翻</b>先前「相機 ≈ 場景原點」的假設——它其實明顯偏向一面長牆（僅 1.89 m）。</div>
+  <figure><img src="assets/lt4_align_plan.png" alt="closed alignment floor plan">
+    <figcaption>閉合對位後的平面：★＝cam5 解出的位置，藍虛線＝四個標定角落的視線，紅線＝三位學生的方位與距離。</figcaption></figure>
+
+  <h3 style="font-size:16px;color:#8b97a7;margin:22px 0 6px">9-3　驗證：兩條獨立求得的 D_wall 是否吻合</h3>
+  <p>對位是否真的閉合，最強的檢核是拿<b>兩個彼此獨立的來源</b>算同一個量：<br>
+   ① 由<b>真實矩形幾何</b>從解出的相機位置射線求交；② 由<b>3DGS 點雲</b>在同一位姿下逐方位角取穩健牆距。兩者若無關，曲線不會重合。</p>
+  <figure><img src="assets/lt4_dwall_check.png" alt="D_wall cross-check">
+    <figcaption>兩條 D_wall 曲線疊合：<span class="ok">相關 +0.971、MAE 0.31 m</span>，連 127° 的轉角不連續與 57°/316° 兩個峰都對上。這取代了先前 lag std=115° 的欠定狀態。</figcaption></figure>
+
+  <h3 style="font-size:16px;color:#8b97a7;margin:22px 0 6px">9-4　重算三位學生的絕對距離</h3>
+  <table>
+    <tr><th>#</th><th>影像方位角</th><th>分區</th><th>D_wall（新）</th><th>先前（bbox 常數）</th><th class="ok">閉合對位後</th></tr>
+    <tr><td>1</td><td>222.6°</td><td>儲物·作業</td><td>2.17 m</td><td>3.7 m</td><td class="ok">1.85 ± 0.16 m</td></tr>
+    <tr><td>2</td><td>247.1°</td><td>儲物·作業</td><td>3.21 m</td><td>4.3 m</td><td class="ok">2.67 ± 0.22 m</td></tr>
+    <tr><td>3</td><td>266.5°</td><td>投影機·白板</td><td>6.59 m</td><td>6.0 m</td><td class="ok">5.39 ± 0.25 m</td></tr>
+  </table>
+  <p class="sub">±值為蒙地卡羅（300 次）傳播四個角落標定不確定度（±2–4°）的 1σ。先前 3.7/4.3/6.0 m 是用被高估的 bbox 牆距算的，前兩人被高估約 1.6–1.9 m。</p>
+
+  <h3 style="font-size:16px;color:#8b97a7;margin:22px 0 6px">9-5　誠實標明：還沒解決的部分</h3>
+  <div class="box" style="border-left-color:#d29922"><b>① 徑向仍然弱，距離的鑑別度幾乎全部來自方位角。</b><br>
+    比值法 <code>true = D_wall × (人深度/背景深度)</code> 中，YOLO26-depth 在環景上是柔和場，三人的比值分別是 0.850 / 0.833 / 0.819——幾乎相同。也就是說<b>「誰比較遠」實際上是 D_wall(方位角) 決定的，不是深度模型決定的</b>。方位角現在很準；徑向仍只是「牆距的固定比例」。</div>
+  <div class="box" style="border-left-color:#d29922"><b>② 想改用幾何測距，被視野截斷擋住（已實測，非臆測）。</b><br>
+    天花板相機本可用腳點俯角測距 <code>r = h/tan(β)</code>。但三人的偵測框下緣是 <b>247.4 / 248.0 / 246.8</b>（影像高 248）——<b>腳全部被切在畫面底邊之外</b>。這個環景是「環帶」去扭曲，不含正下方視野，近處物體的底部不在圖內。因此腳點法與像素身高法在這一幀<b>都不可用</b>（自洽解會塌到 0.3–0.4 m 的荒謬值，且 row0 撞邊界）。<br>
+    另外嘗試用點雲渲染去擬合垂直角度範圍，相關僅 <b>0.049</b>（渲染 40% 破洞，無訊號）——一併記錄為失敗嘗試。</div>
+  <div class="box" style="border-left-color:#d29922"><b>③ 殘留 180° 翻轉風險。</b><br>
+    相機接近長軸中點，使矩形的 D_wall 幾乎 180° 對稱，純幾何無法分辨；<b>影像端任何檢核都分不出來</b>（兩解在影像空間完全等價），只能靠點雲端證據。五項獨立檢核中 3 項支持採用解：黃色管樑位置（91% 落在該面牆，且角度跨度 119° 預測 vs 111° 觀測）、走廊牆立面呈整排規則窗帶、彩色收納籃置物架集中在最近牆（2.1×）；2 項反向（牆外點數、藍色佔比）但兩者都有明確混淆源（玻璃隔間外的另一室內空間、藍色不只出現在門）。<br>
+    若這 180° 判斷錯了，<b>三人的距離數字會互換到對稱方位</b>——方位角語意分區會整組相反。這是目前最大的單一風險。</div>
+  <div class="box"><b>下一步（明確可執行）</b>：① 改用學生站得較遠、腳在畫面內的幀，直接做腳點俯角測距並反過來標定垂直角度範圍；② 若相機支援，取「未裁切正下方」的原始魚眼而非環帶去扭曲；③ 用第二支攝影機（cklivingtech5 / picase）對同一空間做三角測量，可一次同時鎖死 180° 與徑向。</div>
+
+  <h2>九、pibook Hailo？</h2>
   <p>pibook 有 Hailo-8（26 TOPS），但現有 <code>.hef</code> 只到 YOLOv5/6/8/x、<span class="no">沒有也難編 YOLO26</span>（需 x86 DFC、新 NMS-free/depth 架構支援未定），且 Hailo 正被現役 camera_hub 佔用。要 Hailo 加速偵測，現實選擇是沿用 YOLOv8s。</p>
 
   <div class="foot">
