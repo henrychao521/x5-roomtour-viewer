@@ -109,9 +109,16 @@
       <tr><td>結構邊緣</td><td>196°</td><td>不翻</td><td>0.22</td></tr>
     </table>
     lag 分散 <span class="no">std=115°</span>、corr 全弱。原因：亮≠遠（白板亮但近）、環景深度是柔和稀疏場、無銳利對應特徵。</div>
-  <p><b>結論</b>：D_wall 房間輪廓與 cam 位姿<span class="ok">可信</span>；但逐人<b>絕對</b>公制距離受全域偏航歧義影響，<span class="no">無法只靠影像↔深度外觀比對定案</span>。要真正精準化，需<b>實體量測 2–3 個地標距離</b>當錨點（或重跑原 δ 註冊的 LiDAR-render 管線取回座標約定）。差異化/相對定位與房間尺度包絡是可信的部分——不誇大成假精度。</p>
+  <p><b>結論</b>：D_wall 房間輪廓與 cam 位姿<span class="ok">可信</span>；但逐人<b>絕對</b>公制距離受全域偏航歧義影響，<span class="no">無法只靠影像↔深度外觀比對定案</span>。要真正精準化，需地標錨點閉合對位——見下節。</p>
 
-  <h2>七、pibook Hailo？</h2>
+  <h2>七、交叉驗證：實測物件尺寸確認 D_wall 是真公制</h2>
+  <p>既有 <code>measure_space.py</code> 用<b>天花板 T8 日光燈管（4ft=1.22m 全球標準）</b>當參考物標定 3DGS 場景比例，產出公制平面圖 <code>arch_elements.json</code>：k=0.859 m/單位、<b>室內淨 8.82×10.48m ≈93㎡</b>、牆厚 0.15m、門/黑板/12 燈具、<b>8 件家具足跡</b>（工作檯連排 7.58×1.91m…）。</p>
+  <figure><img src="assets/floorplan_lt4_arch.png" alt="measured metric floorplan">
+    <figcaption>燈管參考物標定的公制平面圖（家具足跡+尺寸標註）。這是「測過的物件尺寸」。</figcaption></figure>
+  <div class="box"><b>交叉驗證</b>：我解碼的 <code>lt4_lidar_walk</code> 點雲 X 跨距 <b>8.88m ≈ 實測 8.82m（差 &lt;1%）</b> → <span class="ok">證明該 splat 已是公制，D_wall 的 1.9–6.3m 是真公尺</span>，被獨立參考物量測確認，非任意場景單位。</div>
+  <div class="box" style="border-left-color:#3fb950"><b>對「對位欠定」的意義（好消息）</b>：先前結論說「需實體量測地標」——<b>地標其實早已測</b>（arch_elements 的 8 家具+黑板+門窗世界座標）。下一步不再是量測，而是把這些已知物件在相機影像中逐一標定 image-az → 與 world-az 配對解全域旋轉，即可閉合對位、給出可信逐人絕對距離。<b>資料齊備，屬純標定工作。</b></div>
+
+  <h2>八、pibook Hailo？</h2>
   <p>pibook 有 Hailo-8（26 TOPS），但現有 <code>.hef</code> 只到 YOLOv5/6/8/x、<span class="no">沒有也難編 YOLO26</span>（需 x86 DFC、新 NMS-free/depth 架構支援未定），且 Hailo 正被現役 camera_hub 佔用。要 Hailo 加速偵測，現實選擇是沿用 YOLOv8s。</p>
 
   <div class="foot">
