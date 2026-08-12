@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>閉合對位 v2 · 用 Insta360 乾淨 3DGS 重跑 lt4 對位鏈</title>
+<style>
+ :root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--accent:#ff7a18;--mut:#8b97a7;--ink:#e6edf3;--r:14px}
+ *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);
+   font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+ a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+ header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+   padding:12px 18px;background:rgba(11,14,20,.85);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+ main{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+ h1{font-size:26px;margin:8px 0 6px;line-height:1.35}
+ .sub{color:var(--mut);font-size:14px;margin-bottom:20px}
+ .tag{display:inline-block;background:#1b2230;border:1px solid var(--accent);color:var(--accent);
+   border-radius:14px;padding:1px 10px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:8px}
+ h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);color:var(--accent)}
+ figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+ figure img{width:100%;display:block}
+ figcaption{padding:9px 13px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+ table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+ th,td{border:1px solid var(--line);padding:7px 11px;text-align:left} th{background:var(--bg2);color:var(--mut)}
+ td.n{text-align:right;font-variant-numeric:tabular-nums}
+ .box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+   border-radius:10px;padding:13px 16px;margin:14px 0;font-size:14px}
+ .ok{color:#3fb950;font-weight:700}.no{color:#f85149;font-weight:700}.warn{color:#d29922;font-weight:700}
+ code{background:#1b2230;padding:1px 6px;border-radius:5px;font-size:.85em;color:#ffa657}
+ ul{padding-left:20px} .foot{color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body>
+<header><span style="font-weight:750">🎯 閉合對位 v2</span><a href="index.html">← 回總覽</a></header><main>
+<span class="tag">2026-08-13 · 分支 A</span>
+<h1>用 Insta360 官方 3DGS 重跑 lt4 對位鏈<br>RMS 3.51° → 1.28°，180° 歧義解決</h1>
+<p class="sub">承 <a href="yolo26-people.html#close">閉合對位 v1</a>。當時最大的兩個保留是「房間尺寸來源可疑」與「殘留 180° 翻轉風險」。
+這次用 Insta360 X5 於 8/12 生成的<b>全新、乾淨的 3DGS</b> 重跑整條鏈，兩個問題都有了答案。</p>
+
+<h2>一、資料來源：Insta360 官方 3DGS 資產</h2>
+<p>該 3D 空間為公開分享連結，載入時取用兩個資產（簽章網址）：</p>
+<table>
+<tr><th>檔案</th><th>內容</th></tr>
+<tr><td><code>1_3DGS.sog</code>（16 MB）</td><td>SOG v2 容器，<b>100 萬顆高斯</b>，產生器 <code>splat-transform v3.1.3</code></td></tr>
+<tr><td><code>2_cameras.json</code>（792 KB）</td><td><b>1,914 個相機完整內外參</b>：478 個拍攝點 × center/up/down/left/right</td></tr>
+</table>
+<div class="box">因為產生器就是 <code>splat-transform</code>，直接用官方工具轉出標準 PLY（1M 高斯 / 3 SH bands），不需自行逆推格式。
+236 MB 的 PLY <b>僅本機歸檔</b>（<code>/Volumes/3D/x5-3dgs/insta360-lt4-20260812/</code>），可由 16 MB 的 sog 隨時重生。</div>
+
+<h2>二、房間尺寸：三個獨立來源一致，arch_elements 確定是離群</h2>
+<figure><img src="assets/lt4_room_sources.png" alt="room size sources">
+<figcaption>以相機軌跡為約束（牆必在走過範圍外但 &lt;2.5 m）做 Manhattan 擬合，得<b>旋轉 21.25°、室內 5.73 × 12.06 m、淨高 2.72 m、69.1 ㎡</b>。</figcaption></figure>
+<table>
+<tr><th>來源</th><th class="n">尺寸</th><th class="n">長寬比</th><th>性質</th></tr>
+<tr><td><b>Insta360 splat（本次）</b></td><td class="n">5.73 × 12.06 m</td><td class="n"><b>0.475</b></td><td>全新獨立資料</td></tr>
+<tr><td>Insta360 相機軌跡跨距</td><td class="n">6.53 × 11.88 m</td><td class="n">0.550</td><td>同資料，不同量法</td></tr>
+<tr><td>舊 walk splat（Manhattan）</td><td class="n">6.21 × 10.87 m</td><td class="n">0.571</td><td>v1 使用的來源</td></tr>
+<tr><td>環景四角後方交會推得</td><td class="n">—</td><td class="n">0.50</td><td><b>純影像推導</b></td></tr>
+<tr><td class="no">arch_elements</td><td class="n">8.82 × 10.48 m</td><td class="n">0.842</td><td class="no">軸對齊剖面量斜房間 → 外接矩形</td></tr>
+</table>
+<div class="box"><b>值得注意</b>：v1 中我<b>純粹從環景四個牆角</b>推出的長寬比 0.50，與這份全新獨立資料的 0.475 幾乎一致。
+而 69.1 ㎡ 也符合台灣標準教室（約 67.5 ㎡）。</div>
+
+<h2>三、後方交會：RMS 1.28°</h2>
+<figure><img src="assets/lt4_realign_plan.png" alt="realigned plan">
+<figcaption>★＝解出的 cam5 位置，藍虛線＝四個標定角落視線，紅線＝三位學生。房間矩形換成新的之後，
+8 種對應假設中最佳解的 RMS 由 <b>3.51° 降到 1.28°</b>；其餘假設 ≥33.7°。</figcaption></figure>
+
+<h2>四、180° 歧義：這次解決了</h2>
+<p>v1 時兩個候選解在影像空間完全等價，只能靠點雲端證據，最後是 3:2 的勉強多數。
+這次改用<b>幾何一致性</b>判別——對兩個候選各自計算「房間矩形推得的 D_wall」與「splat 實測 D_wall」的相關：</p>
+<table>
+<tr><th>候選解</th><th class="n">D_wall 相關</th><th class="n">MAE</th><th>判定</th></tr>
+<tr><td><b>rot1−</b>（採用）</td><td class="n"><b>+0.600</b></td><td class="n">1.21 m</td><td class="ok">一致</td></tr>
+<tr><td>rot3−</td><td class="n">−0.038</td><td class="n">2.10 m</td><td class="no">不一致</td></tr>
+</table>
+<div class="box"><b>為什麼這個判別比 v1 可靠</b>：它用整個房間的幾何輪廓（360 個方位角的牆距），
+而不是單一顏色地標。兩解差距 +0.600 vs −0.038 是決定性的，不是勉強多數。黃色管樑的位置證據也指向同一解。</div>
+
+<h2>五、D_wall 交叉檢核：+0.952</h2>
+<figure><img src="assets/lt4_realign_dwall.png" alt="dwall cross check">
+<figcaption>兩條獨立求得的 D_wall（藍＝房間矩形幾何，黃＝splat 實測）疊合，<b>相關 +0.952、MAE 0.52 m</b>。</figcaption></figure>
+<div class="box warn"><b>過程中的一個修正。</b>最初算出來只有 +0.592／MAE 1.23 m，明顯比 v1 的 +0.971 差。
+根因是<b>這份新 splat 透過窗戶重建了大量室外幾何</b>，把該方位的「牆距」拉遠，而矩形模型看不到室外——比較不公平。
+只計室內點後即回到 <b>+0.952</b>。這不是調參數湊數字，而是修正一個定義上的不對等。</div>
+
+<h2>六、三位學生的距離（v2）</h2>
+<table>
+<tr><th>#</th><th class="n">影像方位角</th><th class="n">D_wall(v1)</th><th class="n">D_wall(v2)</th><th class="n">距離 v1</th><th class="n">距離 v2</th></tr>
+<tr><td>1</td><td class="n">222.6°</td><td class="n">2.17 m</td><td class="n">2.07 m</td><td class="n">1.85 m</td><td class="n"><b>1.76 ± 0.16 m</b></td></tr>
+<tr><td>2</td><td class="n">247.1°</td><td class="n">3.21 m</td><td class="n">3.02 m</td><td class="n">2.67 m</td><td class="n"><b>2.52 ± 0.23 m</b></td></tr>
+<tr><td>3</td><td class="n">266.5°</td><td class="n">6.59 m</td><td class="n">6.01 m</td><td class="n">5.39 m</td><td class="n"><b>4.92 ± 0.46 m</b></td></tr>
+</table>
+<p class="sub">±為蒙地卡羅（300 次）傳播四角標定不確定度。v1 → v2 的變化在 5–9% 之間，方向一致（都略微縮短）。</p>
+
+<h2>七、仍然未解的部分</h2>
+<div class="box warn"><b>徑向的鑑別度依舊來自方位角，不是深度模型。</b>比值法的三個比值仍是 0.850/0.833/0.819，幾乎相同——
+「誰比較遠」還是 D_wall(方位角) 決定的。要真正的逐人徑向測距，仍需<b>腳在畫面內</b>的幀
+（<a href="yolo26-people.html#close">v1 第 8-5 節</a>已實測三人的腳都被畫面底邊截斷）。</div>
+<div class="box"><b>新資料本身的品質觀察</b>：這份 splat 有 <b>45.2% 的高斯異性 &gt;10</b>（針狀），異性中位 8.6、p95 高達 170。
+這對應既有的 de-needle 痛點，也是<b>分支 B</b>（重訓＋正則化）要處理的目標。</div>
+
+<div class="foot">
+資料歸檔：<code>/Volumes/3D/x5-3dgs/insta360-lt4-20260812/</code>（含 README 與重生指令）｜
+分析程式：<code>~/3d/yolo26-test/</code>（<code>room_insta2.py</code>、<code>realign_full.py</code>、<code>tiebreak_dwall.py</code>、<code>dwall_fair.py</code>）<br>
+相關：<a href="yolo26-people.html">閉合對位 v1</a> · <a href="yolo26-cameras.html">四台攝影機 × YOLO26-depth</a> · <a href="index.html">總覽</a>
+</div></main></body></html>
