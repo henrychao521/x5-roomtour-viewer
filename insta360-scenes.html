@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Insta360 X5 3DGS 場景庫 · 兩間教室的量化分析</title>
+<style>
+ :root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--accent:#ff7a18;--mut:#8b97a7;--ink:#e6edf3;--r:14px}
+ *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);
+   font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+ a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+ header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+   padding:12px 18px;background:rgba(11,14,20,.85);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+ main{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+ h1{font-size:26px;margin:8px 0 6px;line-height:1.35} .sub{color:var(--mut);font-size:14px;margin-bottom:20px}
+ .tag{display:inline-block;background:#1b2230;border:1px solid var(--accent);color:var(--accent);
+   border-radius:14px;padding:1px 10px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:8px}
+ h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);color:var(--accent)}
+ figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+ figure img{width:100%;display:block}
+ figcaption{padding:9px 13px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+ table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+ th,td{border:1px solid var(--line);padding:7px 11px;text-align:left} th{background:var(--bg2);color:var(--mut)}
+ td.n{text-align:right;font-variant-numeric:tabular-nums}
+ .box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+   border-radius:10px;padding:13px 16px;margin:14px 0;font-size:14px}
+ .ok{color:#3fb950;font-weight:700}.no{color:#f85149;font-weight:700}.warn{color:#d29922;font-weight:700}
+ code{background:#1b2230;padding:1px 6px;border-radius:5px;font-size:.85em;color:#ffa657}
+ ul{padding-left:20px} .foot{color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body>
+<header><span style="font-weight:750">🏫 Insta360 3DGS 場景庫</span><a href="index.html">← 回總覽</a></header><main>
+<span class="tag">2026-08-13</span>
+<h1>Insta360 X5 生成的兩間教室 3DGS<br>用同一套流程量化分析</h1>
+<p class="sub">兩份掃描皆由 Insta360 X5 拍攝並在其雲端生成（SOG v2 / <code>splat-transform v3.1.3</code> / 各 100 萬顆高斯）。
+本頁用同一套自製流程分析：資產擷取 → 轉 PLY → 相機軌跡約束的 Manhattan 房間擬合 → 高斯品質指標。</p>
+
+<h2>一、兩個場景</h2>
+<figure><img src="assets/scene2_view.png" alt="scene2 view">
+<figcaption><b>場景 2 · 家政／生科教室</b>（「8月13日的3D時光艙」）。綠色黑板、吊扇、木作工作檯，地上是學生的木製坡道專題。</figcaption></figure>
+<figure><img src="assets/scene2_vs_cam.jpg" alt="scene2 vs camera">
+<figcaption><b>身分確認</b>：左為 3DGS 掃描，右為 <code>cklivingtech5</code> 攝影機同日畫面。地上同一組木製坡道模型、綠色牆裙、櫃體位置一致 → <b>兩者是同一間教室</b>。</figcaption></figure>
+
+<h2>二、房間幾何（相機軌跡約束的 Manhattan 擬合）</h2>
+<figure><img src="assets/scene2_topdown.jpg" alt="scene2 topdown">
+<figcaption>場景 2 俯視（左＝全部高斯，右＝牆帶 0.5–2.0 m，黃點＝1,880 個相機位置）。<b>近正方形</b>房間，工作檯沿牆佈置，中央是坡道專題。</figcaption></figure>
+<figure><img src="assets/lt4_topdown_insta.jpg" alt="lt4 topdown">
+<figcaption>對照：生科教室四（lt4）俯視。<b>明顯細長</b>，中央是六張綠檯排成 3×2 格狀。</figcaption></figure>
+
+<table>
+<tr><th>項目</th><th class="n">生科教室四（lt4）</th><th class="n">家政／生科（場景 2）</th></tr>
+<tr><td>室內尺寸</td><td class="n">5.76 × 12.07 m</td><td class="n">8.57 × 10.54 m</td></tr>
+<tr><td>長寬比</td><td class="n">0.477（細長）</td><td class="n">0.814（近正方）</td></tr>
+<tr><td>面積</td><td class="n">69.5 ㎡</td><td class="n">90.3 ㎡</td></tr>
+<tr><td>Manhattan 旋轉</td><td class="n">20.75°</td><td class="n">86.50°</td></tr>
+<tr><td>重力對齊檢核</td><td class="n ok">傾斜 0.4°</td><td class="n ok">傾斜 0.1°</td></tr>
+</table>
+
+<h2>三、掃描與重建品質</h2>
+<figure><img src="assets/scene_compare.png" alt="scene comparison">
+<figcaption>三項關鍵指標對照。</figcaption></figure>
+<table>
+<tr><th>指標</th><th class="n">lt4</th><th class="n">場景 2</th><th>意義</th></tr>
+<tr><td>相機數（拍攝點）</td><td class="n">1,914（478）</td><td class="n">1,880（468）</td><td>每點切 center/up/down/left/right</td></tr>
+<tr><td><b>走動距離</b></td><td class="n">363 m</td><td class="n no">190 m</td><td>場景 2 覆蓋只有一半</td></tr>
+<tr><td>拍攝點間距（中位）</td><td class="n">80 cm</td><td class="n">82 cm</td><td>兩者一致</td></tr>
+<tr><td><b>不透明度 &gt;0.5 比例</b></td><td class="n ok">75.7%</td><td class="n no">53.0%</td><td>場景 2 半透明高斯明顯較多</td></tr>
+<tr><td>高斯尺度（中位）</td><td class="n">0.0075 m</td><td class="n">0.0091 m</td><td>—</td></tr>
+<tr><td><b>針狀高斯 &gt;10</b></td><td class="n warn">45.2%</td><td class="n warn">48.3%</td><td>兩者都嚴重</td></tr>
+<tr><td>異性 p95</td><td class="n">170</td><td class="n">209</td><td>—</td></tr>
+</table>
+<div class="box"><b>共同問題：針狀高斯。</b>兩份官方輸出都有 45–48% 的高斯長短軸比超過 10。
+這正是既有 de-needle 工具在事後處理的東西——也是<b>分支 B</b>（重訓 + 正則化）想從訓練階段解決的目標。</div>
+<div class="box warn"><b>誠實標註：淨高數字不可靠。</b>兩種量法給出不同結果——百分位法得 lt4 2.73 m／場景 2 4.28 m，
+密度雙峰法得 2.37 m／2.04 m。4.28 m 對單層教室明顯過高，2.04 m 又過低。
+兩場景的重力對齊都已驗證（傾斜 &lt;0.5°），所以問題出在<b>離群高斯與「哪個密度峰才是天花板」的判定</b>，不是座標系。
+本頁因此<b>不報單一淨高值</b>；房間的水平尺寸則有相機軌跡約束，可信度較高。</div>
+
+<h2>四、一個有戰略意義的發現</h2>
+<div class="box" style="border-left-color:#3fb950"><b>場景 2 是人流定位管線更好的落地對象。</b><br>
+兩間教室都同時擁有 3DGS 掃描<b>與</b>固定攝影機，但鏡頭型式差很多：
+<table style="margin-top:8px">
+<tr><th>教室</th><th>攝影機</th><th>鏡頭</th><th class="n">深度動態範圍</th></tr>
+<tr><td>lt4</td><td>cam5 @ cklivingtech2</td><td>1920×248 環景條</td><td class="n no">0.155</td></tr>
+<tr><td><b>場景 2</b></td><td>homeec @ cklivingtech5</td><td><b>640×480 透視</b></td><td class="n ok">0.750</td></tr>
+</table>
+<a href="yolo26-cameras.html">四台攝影機實測</a>已證明：透視鏡頭的 YOLO26-depth 動態範圍是環景條的 5 倍。
+而 lt4 目前最大的殘留限制正是「徑向鑑別度全來自方位角、深度模型沒有貢獻」
+（見 <a href="lt4-realign-v2.html">閉合對位 v2</a>）。<b>場景 2 同時具備乾淨的 3DGS 幾何與可用的透視深度</b>，
+理論上可以直接做到 lt4 做不到的逐人徑向測距。</div>
+
+<h2>五、方法與可重複性</h2>
+<ul>
+<li><b>資產擷取</b>：<code>insta_fetch.py</code> — 用 CDP 攔截 3D 空間載入的簽章網址，下載 <code>1_3DGS.sog</code> 與 <code>2_cameras.json</code>，並自動關閉教學遮罩後截圖。</li>
+<li><b>轉檔</b>：<code>npx @playcanvas/splat-transform</code>（與 Insta360 生成端同一工具，不需自行逆推格式）。</li>
+<li><b>分析</b>：<code>analyze_scene.py</code> — 房間擬合以<b>相機軌跡為約束</b>（牆必在走過範圍外但 &lt;2.5 m），避開純百分位法被離群高斯拉歪、純密度峰法抓到牆外走廊的兩種失敗。</li>
+</ul>
+<div class="foot">
+資產與分析：<code>assets/insta360_lt4/</code>、<code>assets/insta360_scene2/</code>（各含 sog、cameras.json、analysis.json）；
+236 MB 的 PLY 僅本機歸檔於 <code>/Volumes/3D/x5-3dgs/</code>，可由 sog 重生。<br>
+相關：<a href="lt4-realign-v2.html">閉合對位 v2</a> · <a href="yolo26-cameras.html">四台攝影機 × YOLO26-depth</a> · <a href="yolo26-people.html">人流定位 v1</a>
+</div></main></body></html>
