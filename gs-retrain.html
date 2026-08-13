@@ -33,7 +33,7 @@
 </style></head><body>
 <header><span style="font-weight:750">🧪 3DGS 重訓實驗</span><a href="index.html">← 回總覽</a></header><main>
 <span class="tag">2026-08-13 · 分支 B</span>
-<h1>各向異性門檻正則化<br>把針狀高斯從 12.6% 降到 0.1%，而畫質不降反升</h1>
+<h1>各向異性門檻正則化<br>把針狀高斯降到 0.02%，而畫質不降反升</h1>
 <p class="sub">既有的 <a href="https://github.com/henrychao521/x5-roomtour-viewer">de-needle</a> 是<b>事後</b>夾針。這個實驗問的是：能不能在<b>訓練階段</b>就不要長出針狀高斯？
 在 Colab A100 上以同一份 lt4 COLMAP 資料（726 張／694 已註冊／115,825 稀疏點）做控制對照，唯一變因是正則化。</p>
 
@@ -81,12 +81,42 @@ loss += ANISO_REG * relu(aniso - 10).mean()      # ANISO_REG = 0.1</pre>
 基線在<b>天花板燈管、玻璃隔間、右側貨架</b>有明顯的條狀拖曳與煙霧狀假影；正則化版這些區域乾淨得多，
 玻璃與燈管邊界清楚，走道地面也沒有那層灰霧。</figcaption></figure>
 
-<h2>四、誠實評估：還沒贏過 Insta360 官方</h2>
-<div class="box warn">針狀指標上本實驗（0.1%）優於 Insta360 官方（4.0%），但<b>整體銳利度官方仍明顯較好</b>。
-原因很清楚：本實驗只跑 <b>15k iterations</b>，且沒有官方那套完整的密集化排程。
+<h2>四、第二輪：換更高解析度素材，同場景對打 Insta360 官方</h2>
+<p>上一輪用的是 lt4 的 <code>colmap-1200</code>。改用家政／生科教室的 <code>colmap-1600</code>（840 張 1600×1200、837 已註冊、198,815 稀疏點，比前者多 72%），
+並把高斯上限設為 <b>1,000,000——刻意對齊 Insta360 官方輸出的數量</b>，避免「用更多高斯所以贏」的爭議。</p>
+<table>
+<tr><th>指標</th><th class="n">lt4 colmap-1200<br>15k iters</th><th class="n">homeec colmap-1600<br>20k iters</th></tr>
+<tr><td><b>PSNR</b></td><td class="n">20.35</td><td class="n ok">22.72</td></tr>
+<tr><td><b>真·針狀 &gt;10</b></td><td class="n">0.1%</td><td class="n ok">0.02%</td></tr>
+<tr><td>針狀 p95</td><td class="n">—</td><td class="n ok">9.1</td></tr>
+<tr><td>針狀中位數</td><td class="n">3.14</td><td class="n">3.55</td></tr>
+<tr><td>高斯數</td><td class="n">800,000</td><td class="n">1,000,000</td></tr>
+<tr><td>訓練時間</td><td class="n">12.5 分</td><td class="n">27.4 分</td></tr>
+</table>
+<div class="box ok" style="border-left-color:#3fb950"><b>p95 = 9.1，剛好貼著門檻 10 以下</b>——門檻式懲罰把病理尾巴壓得乾淨，而中位數（3.55）幾乎沒動。這是它有效而不傷畫質的直接證據。</div>
+<figure><img src="assets/homeec_render16.jpg" alt="homeec 1600 render">
+<figcaption>homeec colmap-1600／20k／各向異性正則的渲染（上：ground truth，下：本模型），三個驗證視角。</figcaption></figure>
+
+<h3>同場景、同量級對照</h3>
+<table>
+<tr><th></th><th class="n">Insta360 官方</th><th class="n">本實驗</th></tr>
+<tr><td>場景</td><td class="n" colspan="2">同一間（家政／生科教室）</td></tr>
+<tr><td>高斯數</td><td class="n">1,000,000</td><td class="n">1,000,000</td></tr>
+<tr><td><b>真·針狀 &gt;10</b></td><td class="n">2.3%</td><td class="n ok">0.02%（少 100 倍）</td></tr>
+</table>
+<p class="sub">PSNR 無法直接比較（官方未公開其驗證集切分），故只比可共同量測的針狀指標。</p>
+
+<div class="box"><b>順帶驗證了一個硬體問題。</b>同一台 Insta360 X5、同一批原始素材，
+<b>只是把訓練視角從 1200 抽到 1600，PSNR 就從 20.35 升到 22.72</b>。
+而 X5 原檔是雙魚眼各 <b>3840×3840</b>——1600 只用掉單顆魚眼約 13% 的像素。
+換言之，<b>抽取解析度才是當前瓶頸，不是相機規格</b>。</div>
+
+<h2>五、誠實評估：還沒贏過 Insta360 官方</h2>
+<div class="box warn">針狀指標上本實驗（0.02–0.1%）優於 Insta360 官方（2.3–4.0%），但<b>整體銳利度官方仍明顯較好</b>。
+原因很清楚：本實驗最多只跑 <b>20k iterations</b>、訓練視角只抽到 1600（來源是 3840），且沒有官方那套完整的密集化排程。
 本頁主張的是<b>「各向異性門檻正則有效且免費」這個單一結論</b>，不是「這個模型比官方好」。</div>
 
-<h2>五、過程中踩到的四個坑（都已驗證）</h2>
+<h2>六、過程中踩到的四個坑（都已驗證）</h2>
 <ol>
 <li><b>正則化方向錯</b>：<code>scale_reg</code> 管不到形狀 → 需形狀專屬項（見第二節）。</li>
 <li><b>Colab A100 session 約 1 小時上限</b>：實測 <code>KEEP: started</code> 到 <code>session_terminated</code> 為 60 分 12 秒，
@@ -97,7 +127,7 @@ loss += ANISO_REG * relu(aniso - 10).mean()      # ANISO_REG = 0.1</pre>
 另外 macOS <code>tar</code> 會夾帶 <code>._*</code> resource fork（726 張變 1452），遠端要清。</li>
 </ol>
 
-<h2>六、gsplat 自寫訓練器的正確設定</h2>
+<h2>七、gsplat 自寫訓練器的正確設定</h2>
 <p>官方 <code>examples/</code> 的依賴（fused-ssim、pycolmap）在 Colab 建置失敗，故自寫 SSIM 與 COLMAP 二進位讀取器繞過。以下為對照官方 <code>simple_trainer.py</code> 校正後的設定：</p>
 <table>
 <tr><th>項目</th><th>正確值</th><th>踩過的錯</th></tr>
