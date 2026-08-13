@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>家政教室・1920 全解析度 + pitch 視角（真針狀 0.015%）</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;font-family:-apple-system,"PingFang TC",system-ui;color:#e6edf3}
+  #c{width:100vw;height:100vh;display:block;touch-action:none;cursor:grab}
+  #c:active{cursor:grabbing}
+  #hud{position:fixed;left:14px;top:12px;z-index:5;background:rgba(11,14,20,.62);border:1px solid #222b38;border-radius:10px;padding:8px 12px;font-size:12.5px;backdrop-filter:blur(6px)}
+  #hud b{color:#ff7a18}
+  #hud .tag{display:inline-block;background:#1b2230;border:1px solid #ff7a18;color:#ff7a18;border-radius:14px;padding:1px 9px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:4px}
+  #back{position:fixed;right:14px;top:12px;z-index:5;color:#8b97a7;font-size:12.5px;text-decoration:none;background:rgba(11,14,20,.62);border:1px solid #222b38;border-radius:10px;padding:8px 12px}
+  #load{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0e14;transition:opacity .5s}
+  #bar{width:240px;height:5px;background:#222b38;border-radius:3px;overflow:hidden;margin-top:12px}
+  #fill{height:100%;width:0;background:#ff7a18}
+  #pct{margin-top:8px;color:#8b97a7;font-size:12px}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span class="tag">1920 全解析度 · 18 視角/幀</span><br><b>家政教室</b> 真針狀 0.015%<br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
+<a id="back" href="gs-1920.html">← 實驗紀錄</a>
+<div id="load"><div style="font-size:14px;color:#e6edf3">家政教室・1920 全解析度</div><div id="bar"><div id="fill"></div></div><div id="pct">下載場景…</div></div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+
+// === 1920 全解析度重建:1194/1278 註冊、重投影 0.96px ===
+// 由 408 張 pitch=0 視角的相機姿態求上方向(一致性中位 0.45°)。
+// 注意:不能把 pitch±30 的視角一起平均,它們的相機上方向本來就傾斜 30°。
+const ALIGN=[0.24665,-0.00000,0.96910,0.00203];
+const SPAWN=[-0.030,-0.017,0.080];       // 1194 台相機質心
+
+const canvas=document.getElementById('c');
+const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas),touch:new pc.TouchDevice(canvas),
+  graphicsDeviceOptions:{antialias:false,preserveDrawingBuffer:true}});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize',()=>app.resizeCanvas()); app.start(); window.__app=app;
+
+const cam=new pc.Entity('cam');
+cam.addComponent('camera',{clearColor:new pc.Color(0.925,0.925,0.933),fov:70,nearClip:0.02,farClip:80});
+app.root.addChild(cam);
+
+let pos=new pc.Vec3(SPAWN[0],SPAWN[1],SPAWN[2]);
+let yaw=parseFloat(new URLSearchParams(location.search).get('yaw')||'150'), pitch=6, auto=true, idle=0;
+function applyCam(){
+  cam.setPosition(pos.x,pos.y,pos.z);
+  cam.setEulerAngles(pitch,yaw,0);
+}
+app.on('update',dt=>{
+  idle+=dt;
+  if(auto && idle>3){ yaw=(yaw+dt*4)%360; }   // gentle auto-pan when idle
+  applyCam();
+});
+window.__look=(y,p)=>{yaw=y;pitch=(p==null?pitch:p);auto=false;idle=0;applyCam();};
+
+// drag look
+let drag=false,lx=0,ly=0;
+canvas.addEventListener('pointerdown',e=>{drag=true;auto=false;idle=0;lx=e.clientX;ly=e.clientY;});
+addEventListener('pointerup',()=>{drag=false;idle=0;auto=true;});
+addEventListener('pointermove',e=>{ if(!drag)return; idle=0; yaw-=(e.clientX-lx)*0.18; pitch=Math.max(-88,Math.min(88,pitch-(e.clientY-ly)*0.18)); lx=e.clientX;ly=e.clientY;});
+// wheel = dolly forward/back along look dir
+canvas.addEventListener('wheel',e=>{e.preventDefault();idle=0;
+  const f=cam.forward; const step=-Math.sign(e.deltaY)*0.22;  // 約 0.25 m/格(1單位≈1.15m)
+  pos.x+=f.x*step; pos.y+=f.y*step; pos.z+=f.z*step;
+},{passive:false});
+
+async function load(){
+  const res=await fetch('assets/homeec_1920_web.compressed.ply');
+  const total=+res.headers.get('Content-Length')||19500000;
+  const rd=res.body.getReader(); const ch=[]; let got=0;
+  for(;;){const{done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length;
+    const p=Math.min(100,Math.round(got/total*100)); document.getElementById('fill').style.width=p+'%';
+    document.getElementById('pct').textContent=`下載場景 ${p}%（${(got/1048576).toFixed(1)} MB）`;}
+  document.getElementById('pct').textContent='解碼中…';
+  const url=URL.createObjectURL(new Blob(ch));
+  const asset=new pc.Asset('he1920','gsplat',{url,filename:'s.compressed.ply'});
+  asset.on('load',()=>{
+    const e=new pc.Entity('splat'); e.addComponent('gsplat',{asset});
+    e.setLocalRotation(new pc.Quat(ALIGN[0],ALIGN[1],ALIGN[2],ALIGN[3]));
+    app.root.addChild(e); window.__splat=e; applyCam();
+    const l=document.getElementById('load'); l.style.opacity=0; setTimeout(()=>l.style.display='none',500);
+  });
+  asset.on('error',err=>document.getElementById('pct').textContent='載入失敗：'+err);
+  app.assets.add(asset); app.assets.load(asset);
+}
+load();
+</script></body></html>
