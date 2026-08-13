@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GaussExplorer 主動視角探索 — 3DGS × VLM</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--dim:#8b949e;
+      --ok:#3fb950;--bad:#f85149;--warn:#d29922;--acc:#58a6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+     font:16px/1.75 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
+h1{font-size:26px;margin:0 0 4px;line-height:1.35}
+h2{font-size:20px;margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h3{font-size:16px;margin:26px 0 8px;color:var(--acc)}
+.sub{color:var(--dim);font-size:14px;margin-bottom:28px}
+a{color:var(--acc)}
+p{margin:12px 0}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+figure{margin:18px 0}
+figcaption{color:var(--dim);font-size:13px;margin-top:8px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}
+th{background:var(--panel);color:var(--dim);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.box{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);
+     border-radius:6px;padding:14px 16px;margin:18px 0}
+.box.err{border-left-color:var(--bad)}
+.box.warn{border-left-color:var(--warn)}
+.box b{display:block;margin-bottom:6px}
+code{background:#1f2630;padding:1px 6px;border-radius:4px;font-size:13px;
+     font-family:"SF Mono",Menlo,monospace}
+pre{background:#1f2630;border:1px solid var(--line);border-radius:6px;
+    padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.6}
+.nav{margin-bottom:22px;font-size:14px}
+ul{padding-left:22px}li{margin:6px 0}
+.foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);
+      color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav"><a href="index.html">← 回總覽</a></div>
+
+<h1>GaussExplorer 主動視角探索</h1>
+<div class="sub">讓 VLM 不再被原始拍攝機位綁住 —— 從 3DGS 生成「為了回答問題而存在」的新視角<br>
+2026-08-13 · 場景：家政教室（Insta360 X5 環景 → 3DGS）</div>
+
+<h2>一、問題</h2>
+<p>用 3DGS 掃描一間教室之後，若要問「教室裡有幾支日光燈？」「黑板旁邊有什麼？」，
+一般做法是把原始拍攝的畫面丟給 VLM。但原始畫面是<strong>自拍桿沿著地面水平環繞</strong>拍的——
+天花板的燈永遠在畫面邊緣、被工作檯遮住的東西永遠看不到。</p>
+
+<p>GaussExplorer 這類方法的核心是：既然已經有 3DGS，就<strong>為每個問題生成一個最適合回答它的視角</strong>，
+而不是在既有畫面裡挑一張最不差的。</p>
+
+<h2>二、先驗證畫面方向（差點毀掉整條鏈）</h2>
+<div class="box err">
+<b>抓到的錯誤：渲染出來的畫面上下顛倒</b>
+第一版的六張「最佳視角」全部是倒的，而我看圖時沒察覺——因為點雲破洞多，
+天花板和地板都是灰白色，倒過來看起來也「像是一個房間」。
+</div>
+
+<p>驗證方法很簡單但決定性：<strong>日光燈一定在天花板</strong>。
+在點雲裡找出高亮度高斯，投影後統計它們落在畫面上半的比例：</p>
+
+<table>
+<tr><th>相機設定</th><th class="n">燈落在畫面上半</th><th>判定</th></tr>
+<tr><td><code>up=[0,-1,0]</code>（原本）</td><td class="n">0%</td><td class="bad">✗ 上下顛倒</td></tr>
+<tr><td><code>up=[0,+1,0]</code>（修正）</td><td class="n">100%</td><td class="ok">✓ 正確</td></tr>
+</table>
+
+<p>根因：場景是 y-down（樓面 y=+1.91、天花 y=−1.10），而 <code>look_at</code> 的第三個參數
+是「<strong>相機 y 軸</strong>」＝影像向下方向，我卻餵了「世界向上」。</p>
+
+<figure>
+<img src="assets/gauss-explorer/orient_check.jpg" alt="修正後四個方位的渲染畫面">
+<figcaption>修正後：日光燈在頂、地磚在底、綠色黑板在牆面中段。畫面終於可判讀。</figcaption>
+</figure>
+
+<h2>三、評分被鑽漏洞的三個版本</h2>
+
+<h3>v1：加權相加 → 退化成「貼著碎片拍」</h3>
+<p>第一版把四項指標加權相加，其中「目標占畫面比例」設成占 6% 就滿分。
+結果最佳解變成把鏡頭貼到目標的一小塊碎片前面：</p>
+<table>
+<tr><th>查詢</th><th class="n">分數</th><th class="n">實際看到目標的比例</th></tr>
+<tr><td>window</td><td class="n">0.58</td><td class="n bad">2.8%</td></tr>
+<tr><td>bench</td><td class="n">0.62</td><td class="n bad">10.8%</td></tr>
+</table>
+<p>任何一項可以被犧牲到接近 0，仍然靠其他項拿高分。</p>
+
+<h3>v2.0：改乘性 + 先切成物件實例</h3>
+<p>兩個修正。第一，改成<strong>乘性</strong>：任一項趨近 0 則整體歸零，無法互相補償。
+第二，目標要先切成 <strong>3D 連通分量（物件實例）</strong>——
+因為查詢問的是「黑板」這一個物件，不是「房間裡所有綠色的東西」；
+不分群的話，目標散落全室，單一視角的完整度天生上不去。</p>
+<p>效果：window 的完整度從 <span class="bad">2.8%</span> 拉到 <span class="ok">46%</span>。</p>
+
+<h3>v2.1：我過度修正，反而更差</h3>
+<div class="box warn">
+<b>對數高斯在 log 尺度是對稱的，懲罰方向剛好相反</b>
+為了懲罰「貼太近」，我把視在大小改成峰值 25% 的對數高斯。
+結果「占畫面 5%」被罰到 0.13、而「占 47%」還有 0.70——
+把原本最好的那張窗戶正面圖淘汰掉了。
+</div>
+
+<h3>v2.2：非對稱分段函數</h3>
+<pre>&lt;4%     太小看不清   → 線性升
+4~35%   平台(對 VLM 都夠用)
+&gt;35%    貼太近/易裁切 → 線性降,75% 歸零</pre>
+<p>健康指標：<strong>每個實例的前三名都是同一機位的小變化</strong>
+（黑板 0.541 / 0.532 / 0.495），代表評分曲面平滑，不是被單點鑽出來的尖峰。</p>
+
+<h2>四、幾何檢核取代調顏色閾值</h2>
+<p>顏色規則會把日光燈誤判成窗戶（兩者都很亮）。但分群後已經知道每個實例的<strong>實體尺寸</strong>，
+用尺寸就能乾淨分開，而且否決理由可稽核：</p>
+
+<pre>✓ lights#1  dims=[1.25, 0.29, 0.12] 離地 3.10m
+✗ window#2  dims=[1.26, 0.34, 0.12] ← 不符:最大邊 &gt; 1.5m / 面積 &gt; 1.5m²
+✗ bench#0   dims=[11.20, 10.03, 0.55] ← 不符:未跨滿全室(最大邊 &lt; 5m)</pre>
+
+<h2>五、一條把量測全部帶偏的連鎖錯誤</h2>
+<div class="box err">
+<b>天花板估計被「穿窗重建的室外幾何」汙染</b>
+3DGS 會把窗外的天空一起重建進來。用全點雲取百分位當天花板，
+就抓到天空 → 房高被高估成 3.79 m → 所有「相對房高」的規則跟著偏 →
+bench 規則實際指向離地 1.3~2.3 m，真正的檯面（0.9 m）反而被排除。
+</div>
+
+<table>
+<tr><th>量測</th><th class="n">修正前</th><th class="n">修正後</th><th>對照實物</th></tr>
+<tr><td>房高</td><td class="n bad">3.79 m</td><td class="n ok">3.01 m</td><td>校舍教室 3.0~3.2 m</td></tr>
+<tr><td>天花板 y</td><td class="n bad">−1.86（天空）</td><td class="n ok">−1.10</td><td>燈面離地 3.06 m</td></tr>
+<tr><td>工作檯面高</td><td class="n bad">0.91（其實是厚度）</td><td class="n ok">0.75 / 0.89 / 0.92 / 1.07 m</td><td>標準檯面 0.75~0.9 m</td></tr>
+<tr><td>日光燈管長</td><td class="n ok" colspan="2" style="text-align:center">1.25 ~ 1.28 m（全程正確）</td><td>4 呎管 = 1.2 m</td></tr>
+</table>
+
+<p>三個修法：室內量測<strong>只用房間中央 50%</strong>；天花板取<strong>密度峰值</strong>而非極端百分位
+（官方 3DGS 輸出有針狀高斯浮在天花之上）；所有規則改用<strong>離地絕對公尺</strong>。</p>
+
+<h2>六、結果</h2>
+<figure>
+<img src="assets/gauss-explorer/query_v2_scene2.jpg" alt="四個查詢各自選出的最佳視角">
+<figcaption>左上 黑板（完整度 0.61）／右上 窗戶（0.58）／左下 窗戶#1／
+<strong>右下 日光燈（0.53）——相機自動抬到 pitch +35° 仰視</strong></figcaption>
+</figure>
+
+<div class="box">
+<b>日光燈那張是這套方法最好的證明</b>
+原始拍攝是自拍桿水平環繞，<strong>根本沒有仰視 35° 的機位</strong>。
+這張圖是為了「看清楚一支日光燈管」而從 3DGS 生成出來的。
+</div>
+
+<table>
+<tr><th>查詢</th><th class="n">分數</th><th class="n">完整度</th><th>機位 / 姿態</th></tr>
+<tr><td>blackboard #0</td><td class="n">0.536</td><td class="n">0.61</td><td>(+2.7,−2.1) yaw 60° pitch 0°</td></tr>
+<tr><td>window #0</td><td class="n">0.446</td><td class="n">0.58</td><td>(+0.4,+1.7) yaw 0° pitch +12°</td></tr>
+<tr><td>window #1</td><td class="n">0.383</td><td class="n">0.50</td><td>(+2.7,+3.6) yaw 30° pitch +12°</td></tr>
+<tr><td>lights #0</td><td class="n">0.346</td><td class="n">0.53</td><td>(−2.0,−0.2) yaw 150° <strong>pitch +35°</strong></td></tr>
+</table>
+
+<h2>七、目前的限制（誠實列出）</h2>
+<ul>
+<li><strong>目標定義還是顏色 + 幾何規則</strong>，不是真正的語意理解。
+正解是開放詞彙分割（LangSplat / OpenGaussian 那類把語意特徵寫進高斯），
+而不是繼續加規則。</li>
+<li><strong>本機無 CUDA，渲染是「高斯中心點潑濺 + z-buffer」近似</strong>，
+不是真正的 3DGS 光柵化。對視角<em>選擇</em>足夠，但近處有明顯破洞；
+要給 VLM 判讀細部（例如「哪台機台旁沒有護目鏡」）可能不夠。</li>
+<li><strong>還沒做量化的回答正確率評估。</strong>
+要證明「選出的視角真的讓 VLM 答得更準」，需要一組有標準答案的題目做對照，
+目前只做到「視角在幾何上明顯更好」。</li>
+</ul>
+
+<h2>八、實作備註</h2>
+<p>候選視角 1800 個（5×5 機位 × 12 方位 × 6 俯仰），每個都要渲染評分。
+原本的 per-gaussian Python 迴圈是「每個查詢各渲染一輪」，900 視角 × 4 查詢要跑近半小時；
+改成向量化 z-buffer（<code>lexsort</code> + <code>unique</code> 取每像素最近點）
+並讓單次渲染供所有查詢共用後，<strong>1800 視角 × 8 實例只要 169 秒</strong>。</p>
+<p>向量版與原版做過等價性驗證：覆蓋率相同、深度中位差 0.00 cm、
+差異 &gt;5cm 的像素 0%、顏色 99.7% 一致（差異來自深度並列時的排序）。</p>
+
+<div class="foot">
+程式碼 <code>~/3d/gauss-explorer/</code>：
+<code>explorer.py</code>（渲染／房間座標）·
+<code>fastrender.py</code>（向量化 z-buffer）·
+<code>instances.py</code>（3D 連通分量）·
+<code>verify_instance.py</code>（幾何檢核）·
+<code>query_v2.py</code>（查詢導向評分）
+</div>
+
+</div>
+</body>
+</html>
