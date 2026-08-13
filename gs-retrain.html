@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3DGS 重訓實驗 · 各向異性正則化幾乎消除針狀高斯</title>
+<style>
+ :root{--bg:#0b0e14;--bg2:#11151d;--card:#151a23;--line:#232a36;--accent:#ff7a18;--mut:#8b97a7;--ink:#e6edf3;--r:14px}
+ *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);
+   font-family:-apple-system,"PingFang TC",system-ui;line-height:1.75}
+ a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+ header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+   padding:12px 18px;background:rgba(11,14,20,.85);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+ main{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+ h1{font-size:26px;margin:8px 0 6px;line-height:1.35} .sub{color:var(--mut);font-size:14px;margin-bottom:20px}
+ .tag{display:inline-block;background:#1b2230;border:1px solid var(--accent);color:var(--accent);
+   border-radius:14px;padding:1px 10px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:8px}
+ h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);color:var(--accent)}
+ h3{font-size:16px;margin:22px 0 8px;color:var(--ink)}
+ figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+ figure img{width:100%;display:block}
+ figcaption{padding:9px 13px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+ table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+ th,td{border:1px solid var(--line);padding:7px 11px;text-align:left} th{background:var(--bg2);color:var(--mut)}
+ td.n{text-align:right;font-variant-numeric:tabular-nums}
+ .box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+   border-radius:10px;padding:13px 16px;margin:14px 0;font-size:14px}
+ .ok{color:#3fb950;font-weight:700}.no{color:#f85149;font-weight:700}.warn{color:#d29922;font-weight:700}
+ code{background:#1b2230;padding:1px 6px;border-radius:5px;font-size:.85em;color:#ffa657}
+ pre{background:#11151d;border:1px solid var(--line);border-radius:8px;padding:11px 14px;overflow-x:auto;
+     font-size:12.5px;color:#c9d1d9}
+ ul,ol{padding-left:22px} li{margin:5px 0}
+ .foot{color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body>
+<header><span style="font-weight:750">🧪 3DGS 重訓實驗</span><a href="index.html">← 回總覽</a></header><main>
+<span class="tag">2026-08-13 · 分支 B</span>
+<h1>各向異性門檻正則化<br>把針狀高斯從 12.6% 降到 0.1%，而畫質不降反升</h1>
+<p class="sub">既有的 <a href="https://github.com/henrychao521/x5-roomtour-viewer">de-needle</a> 是<b>事後</b>夾針。這個實驗問的是：能不能在<b>訓練階段</b>就不要長出針狀高斯？
+在 Colab A100 上以同一份 lt4 COLMAP 資料（726 張／694 已註冊／115,825 稀疏點）做控制對照，唯一變因是正則化。</p>
+
+<h2>一、先更正一個我自己犯的量測錯誤</h2>
+<div class="box no" style="border-left-color:#f85149"><b>「針狀比例」不能用 <code>max/min</code> 量。</b><br>
+高斯有三個軸。<code>max/min</code> 很大的可能是<b>扁平圓盤</b>（兩長一短）——但<b>扁平高斯在 3DGS 是正常且必要的</b>，它們正是用來貼合表面的。
+真正的病理「針狀」是<b>一長兩短</b>，對應 <code>max/median</code>。<br>
+兩者差距巨大：同一個模型 <code>max/min&gt;10</code> 是 62%，<code>max/median&gt;10</code> 只有 0.1%。</div>
+<table>
+<tr><th>模型</th><th class="n">真·針狀 <code>max/median&gt;10</code></th><th class="n">舊誤用 <code>max/min&gt;10</code></th></tr>
+<tr><td>Insta360 lt4 官方輸出</td><td class="n">4.0%</td><td class="n">45.2%</td></tr>
+<tr><td>Insta360 場景2 官方輸出</td><td class="n">2.3%</td><td class="n">48.3%</td></tr>
+<tr><td>本實驗 基線</td><td class="n warn">12.6%</td><td class="n">61.1%</td></tr>
+<tr><td><b>本實驗 各向異性正則</b></td><td class="n ok">0.1%</td><td class="n">62.1%</td></tr>
+</table>
+<div class="box warn">這個錯誤一度讓我<b>誤判正則化失敗</b>——因為我懲罰的是 <code>max/median</code>，評分卻用 <code>max/min</code>，
+於是看到「針狀 62%，毫無改善」。<b>損失函數與評估指標必須量同一件事</b>，否則成功會長得像失敗。
+本頁保留舊欄位，是為了讓這個對照可被檢驗。</div>
+
+<h2>二、關鍵洞察：<code>scale_reg</code> 管不到形狀</h2>
+<p>第一輪我沿用 gsplat 官方 MCMC 設定的 <code>opacity_reg</code> + <code>scale_reg</code>，結果 PSNR 從 20.11 崩到 13.45、異性 p95 反而爆到 920 萬。查文獻後才理解原因：</p>
+<div class="box"><b><code>scale_reg</code> 懲罰的是「尺度大小」，針狀問題是「長短軸比例」——兩者正交。</b>
+所以整體縮小了，極端細長的反而沒被約束。<br>
+<a href="https://arxiv.org/html/2406.11672" target="_blank">Effective Rank Analysis（NeurIPS 2024）</a>指出針狀高斯尺度比約 20:1 以上，只覆蓋極小表面卻產生尖刺假影；
+<a href="https://arxiv.org/pdf/2507.23006" target="_blank">Robust and Efficient 3DGS</a> 則提出<b>比例約束</b>——限制最大軸與中位軸之比，<b>超過門檻才罰，接近球形的完全不受影響</b>。</div>
+<p>依此加入一項直接對應指標的損失：</p>
+<pre>aniso = scales.max(1) / scales.median(1)
+loss += ANISO_REG * relu(aniso - 10).mean()      # ANISO_REG = 0.1</pre>
+
+<h2>三、控制對照結果</h2>
+<p>同資料、同 15,000 iterations、同全解析度 1200×900、同 L1+0.2·(1−SSIM) 損失與 lr 衰減。唯一變因是正則化。</p>
+<table>
+<tr><th>指標</th><th class="n">基線</th><th class="n">各向異性正則</th><th>變化</th></tr>
+<tr><td><b>真·針狀 &gt;10</b></td><td class="n">12.6%</td><td class="n ok">0.1%</td><td class="ok">↓ 126 倍</td></tr>
+<tr><td><b>PSNR</b></td><td class="n">20.05</td><td class="n ok">20.35</td><td class="ok">↑ 0.30 dB（不降反升）</td></tr>
+<tr><td>針狀中位數</td><td class="n">3.44</td><td class="n">3.14</td><td>幾乎不變（門檻式懲罰的預期行為）</td></tr>
+<tr><td>高斯數</td><td class="n">2,097,145</td><td class="n">800,000</td><td>MCMC cap 限制</td></tr>
+<tr><td>訓練時間</td><td class="n">12.8 分</td><td class="n">12.5 分</td><td>無額外成本</td></tr>
+</table>
+<div class="box ok" style="border-left-color:#3fb950">中位數幾乎不變、而 &gt;10 的尾巴被清空——這正是門檻式懲罰的設計目標：
+<b>低於門檻的完全不動，只把病理尾巴壓平</b>。所以畫質沒有被犧牲。</div>
+
+<figure><img src="assets/gs_render_cmp.jpg" alt="render comparison">
+<figcaption>同三個驗證視角的渲染對照（上：ground truth／中：基線／下：各向異性正則）。
+基線在<b>天花板燈管、玻璃隔間、右側貨架</b>有明顯的條狀拖曳與煙霧狀假影；正則化版這些區域乾淨得多，
+玻璃與燈管邊界清楚，走道地面也沒有那層灰霧。</figcaption></figure>
+
+<h2>四、誠實評估：還沒贏過 Insta360 官方</h2>
+<div class="box warn">針狀指標上本實驗（0.1%）優於 Insta360 官方（4.0%），但<b>整體銳利度官方仍明顯較好</b>。
+原因很清楚：本實驗只跑 <b>15k iterations</b>，且沒有官方那套完整的密集化排程。
+本頁主張的是<b>「各向異性門檻正則有效且免費」這個單一結論</b>，不是「這個模型比官方好」。</div>
+
+<h2>五、過程中踩到的四個坑（都已驗證）</h2>
+<ol>
+<li><b>正則化方向錯</b>：<code>scale_reg</code> 管不到形狀 → 需形狀專屬項（見第二節）。</li>
+<li><b>Colab A100 session 約 1 小時上限</b>：實測 <code>KEEP: started</code> 到 <code>session_terminated</code> 為 60 分 12 秒，
+期間<b>無任何 keep-alive 錯誤</b>（非設定問題）。一次完整訓練因此連同 VM 一起消失。
+→ 長訓練必須切成 &lt;45 分鐘段落，且<b>每段跑完立刻取回結果</b>。</li>
+<li><b><code>colab exec</code> 佔用 Jupyter kernel</b>：訓練跑前景時連狀態查詢都會被排隊卡住 → 訓練要 <code>nohup</code> 丟 VM 背景。</li>
+<li><b>大檔上傳失敗</b>：<code>colab upload</code> 傳 234 MB 直接 500 → 切 20 MB 塊上傳再遠端合併（實測 9 MB/s）。
+另外 macOS <code>tar</code> 會夾帶 <code>._*</code> resource fork（726 張變 1452），遠端要清。</li>
+</ol>
+
+<h2>六、gsplat 自寫訓練器的正確設定</h2>
+<p>官方 <code>examples/</code> 的依賴（fused-ssim、pycolmap）在 Colab 建置失敗，故自寫 SSIM 與 COLMAP 二進位讀取器繞過。以下為對照官方 <code>simple_trainer.py</code> 校正後的設定：</p>
+<table>
+<tr><th>項目</th><th>正確值</th><th>踩過的錯</th></tr>
+<tr><td>means lr</td><td>1.6e-4，<b>ExponentialLR 衰減到 1%</b></td><td class="no">固定 lr → MCMC 雜訊注入正比於 lr，必發散</td></tr>
+<tr><td>MCMC 初始化</td><td><code>init_opa=0.5</code>、<code>init_scale=0.1</code>×kNN</td><td class="no">用 DefaultStrategy 的 0.1／1.0 → 高斯起始大 10 倍</td></tr>
+<tr><td>SH 升階</td><td>每 <b>1000</b> 步一階</td><td class="no">每 7500 步 → 顏色能力上得太慢</td></tr>
+<tr><td>損失</td><td><code>lerp(l1, 1−ssim, 0.2)</code></td><td>—</td></tr>
+<tr><td>API 陷阱</td><td colspan="2"><code>MCMCStrategy.initialize_state()</code> <b>無</b> <code>scene_scale</code>；<code>DefaultStrategy</code> 才有，且 <code>post_backward</code> 吃 <code>packed</code></td></tr>
+</table>
+
+<div class="foot">
+資料來源：<code>/Volumes/3D/x5-3dgs/workshop-livingtech4b/colmap-1200</code>（外接碟）｜
+結果：<code>~/3d/colab-jobs/results/</code>｜訓練器：自寫，繞過 gsplat examples 依賴<br>
+相關：<a href="insta360-scenes.html">Insta360 場景庫</a> · <a href="lt4-realign-v2.html">閉合對位 v2</a> · <a href="yolo26-cameras.html">四台攝影機 × YOLO26-depth</a>
+</div></main></body></html>
