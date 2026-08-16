@@ -44,18 +44,38 @@ ul{padding-left:22px}li{margin:6px 0}
 <div class="nav"><a href="index.html">← 回總覽</a></div>
 
 <h1>本機 VLM 大範圍評測</h1>
-<div class="sub">4 模型 × 4 領域 · Apple M4 Max 36 GB · MLX · 2026-08-16</div>
+<div class="sub">4 模型 × 3 領域 · 教室計數 100 題 · Apple M4 Max 36 GB · MLX · 2026-08-16</div>
+
+<div class="box err">
+<b>2026-08-16 更正：教室計數的真值原本是錯的，本頁數字已全面更新</b>
+初版把「可見」定義成「該燈具有多少比例的高斯贏得 z-buffer」。
+但燈具有厚度，<strong>自己的正面會遮住自己的背面</strong>，斜看時比例天生就低——
+實測一張圖有 7 具燈具各佔 102~1385 像素（肉眼清楚），卻有 6 具因比例 5~14% 被判成「看不到」，
+真值算成 1，模型答 5~6 反而被判錯。
+<br><br>
+已改為<strong>純以該燈具在畫面上實際佔的像素數</strong>判定（z-buffer 早已處理遮擋）。
+修正後全部模型分數上升 6~12 個百分點，
+<strong>初版報告的「系統性高估、盤點會漏報缺件」大幅縮水，該警告已收回</strong>。
+</div>
 
 <h2>一、結論先講</h2>
 <div class="box ok">
-<b>2.9 GB 的 Qwen3-VL-4B 在統計上和 15 GB 的 Qwen3.8-27B 無法區分</b>
-84 題配對檢定 p=0.180（不顯著），但 4B 快 <strong>4.7 倍</strong>、記憶體只要 <strong>1/5</strong>。
-兩者都顯著勝過 Qwen3-VL-8B 與 Qwen2.5-VL-7B。
+<b>2.9 GB 的 Qwen3-VL-4B 是實務上的最佳選擇</b>
+100 題中它的 <strong>MAE 0.57 與誤差≤1 的 87% 都是四者最佳</strong>，
+完全正確率 56.0% 與 15 GB 的 27B（61.0%）配對檢定 p=0.302 不顯著，
+但<strong>快 4.8 倍、記憶體只要 1/5</strong>。
 </div>
-<div class="box err">
-<b>所有模型都系統性高估物件數量</b>
-高估 37~53 次、低估 0~3 次。做「有沒有東西不見了」的盤點時，
-VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效方向。
+<div class="box warn">
+<b>這個任務沒有明確真值，別把準確率當精確數字</b>
+真值定義修過兩次，仍在兩個方向上與感知不一致
+（有題目真值 1 但畫面上看得到 2~3 條；有題目真值 8 但只數得到 4~5 條）。
+顆粒感強的渲染上，「一具燈是否看得見」在邊緣案例本來就模糊。
+<strong>應以 MAE 與誤差≤1 為主指標</strong>，完全正確率僅供粗分層級。
+</div>
+<div class="box">
+<b>唯一在兩種真值定義下都成立的發現</b>
+<strong>Qwen2.5-VL-7B 幾乎從不回答「0」</strong>——100 題中真值為 0 的 25 題只答對 2 題。
+需要偵測「東西不在」的場合不能用它。
 </div>
 
 <h2>二、測試設計</h2>
@@ -67,83 +87,115 @@ VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效�
 <tr><th>領域</th><th class="n">題數</th><th>真值來源</th><th class="n">天真基準</th></tr>
 <tr><td>工程圖尺寸讀取</td><td class="n">2</td><td>圖上印的標註（外部 Wikimedia 圖）</td><td class="n">0%</td></tr>
 <tr><td>正投影視圖計數</td><td class="n">3</td><td>圖面配置</td><td class="n">66.7%</td></tr>
-<tr><td><b>教室燈具計數</b></td><td class="n"><b>84</b></td><td><b>3DGS 點雲實例分解</b></td><td class="n"><b>29.8%</b></td></tr>
+<tr><td><b>教室燈具計數</b></td><td class="n"><b>100</b></td><td><b>3DGS 點雲實例分解</b></td><td class="n"><b>25.0%</b></td></tr>
 </table>
 
 <h3>自動產生題目，但只收「不模稜兩可」的</h3>
-<p>教室這一項由點雲幾何自動出題與標答。關鍵在於：每個候選視角用<strong>三組可見門檻</strong>
-（15%/40px、25%/60px、35%/90px）各算一次燈具數，<strong>三者一致才收</strong>。</p>
-<pre>試 1400 個候選視角 → 只留下 84 題（丟棄 94%）</pre>
-<p>被丟棄的是那些「答案會隨門檻改變」的視角。先前用 3 題做的測試之所以脆弱，
-正是因為沒有這道過濾。</p>
+<p>教室這一項由點雲幾何自動出題與標答：一具燈具算「看得見」的條件是
+<strong>它在畫面上贏得 z-buffer 的像素數 ≥ 門檻</strong>（z-buffer 本身已處理遮擋）。
+用 60/120/250 三組門檻各算一次，<strong>三者一致才收</strong>。</p>
+<pre>試 159 個候選視角 → 收滿 100 題</pre>
+<div class="box warn">
+<b>丟棄率本身就是定義是否合理的訊號</b>
+初版（錯誤的高斯比例定義）要試 <strong>1400 個</strong>視角才湊到 84 題，丟棄 94%；
+改成像素面積後只要 <strong>159 個</strong>。當時我把那個 94% 當成「嚴謹的過濾」來報告，
+實際上它是<strong>定義不穩定</strong>的警訊。
+</div>
 
-<h2>三、結果</h2>
+<h2>三、測試圖樣本</h2>
+<figure>
+<img src="assets/gauss-explorer/bench_samples.jpg" alt="教室燈具計數題目樣本">
+<figcaption>教室計數題目樣本，真值 0 / 1 / 2 / 3 / 5 / 8 具。
+全部由 3DGS 生成新視角（含 pitch +12~+35 的仰視，原始自拍桿拍攝沒有這些機位）。
+顆粒感是 3DGS 渲染特性，提示詞已明確要求模型判斷場景而非渲染雜訊。</figcaption>
+</figure>
+
+<figure>
+<img src="assets/gauss-explorer/bench_cases.jpg" alt="四模型全對與全錯的案例">
+<figcaption>上排：四個模型全部答對的題目（真值 1、2）。
+中下排：四個模型全部答錯的題目。
+<strong>注意中排右與下排右——真值 1 但畫面上看得到 2~3 條、真值 8 但只數得到 4~5 條，
+兩個方向都有。這正是下一節說「此任務沒有明確真值」的直接證據。</strong></figcaption>
+</figure>
+
+<div class="box warn">
+<b>工程圖的測試圖這次沒能附上</b>
+5 張工程圖存放在外接碟 <code>/Volumes/3D</code>，本次整理時該路徑回報
+<code>Operation not permitted</code>（macOS 權限限制，session 中途才出現，先前可讀）。
+不以其他圖替代。
+</div>
+
+<h2>四、結果</h2>
 <figure>
 <img src="assets/gauss-explorer/vlm_analysis.png" alt="四模型統計分析圖">
-<figcaption>(a) 準確率與 95% 信賴區間　(b) 準確率 vs 推論成本
-(c) 誤差方向　(d) 依真值分層</figcaption>
+<figcaption>(a) MAE（主指標）　(b) 完全正確率與 95% CI
+(c) 真值修正前後對照　(d) 誤差方向</figcaption>
 </figure>
 
 <table>
 <tr><th>模型</th><th class="n">完全正確</th><th class="n">95% CI</th><th class="n">誤差≤1</th><th class="n">MAE</th><th class="n">秒/張</th><th class="n">峰值記憶體</th></tr>
-<tr><td><b>Qwen3.8-27B</b></td><td class="n ok"><b>54.8%</b></td><td class="n">[44.1, 65.0]</td><td class="n">79.8%</td><td class="n">0.75</td><td class="n">5.46</td><td class="n">20.5 GB</td></tr>
-<tr><td><b>Qwen3-VL-4B</b></td><td class="n ok"><b>48.8%</b></td><td class="n">[38.4, 59.3]</td><td class="n">77.4%</td><td class="n">0.82</td><td class="n ok"><b>1.15</b></td><td class="n ok"><b>4.3 GB</b></td></tr>
-<tr><td>Qwen3-VL-8B</td><td class="n">39.3%</td><td class="n">[29.5, 50.0]</td><td class="n">72.6%</td><td class="n">0.98</td><td class="n">1.92</td><td class="n">6.8 GB</td></tr>
-<tr><td>Qwen2.5-VL-7B</td><td class="n">33.3%</td><td class="n">[24.2, 43.9]</td><td class="n">79.8%</td><td class="n">0.99</td><td class="n">2.26</td><td class="n">6.7 GB</td></tr>
-<tr><td>天真基準</td><td class="n bad">29.8%</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td><b>Qwen3.8-27B</b></td><td class="n">61.0%</td><td class="n">[51.2, 70.0]</td><td class="n">83.0%</td><td class="n">0.60</td><td class="n">5.42</td><td class="n">20.5 GB</td></tr>
+<tr><td><b>Qwen3-VL-4B</b></td><td class="n">56.0%</td><td class="n">[46.2, 65.3]</td><td class="n ok"><b>87.0%</b></td><td class="n ok"><b>0.57</b></td><td class="n ok"><b>1.12</b></td><td class="n ok"><b>4.3 GB</b></td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n">51.0%</td><td class="n">[41.3, 60.6]</td><td class="n">82.0%</td><td class="n">0.70</td><td class="n">1.89</td><td class="n">6.8 GB</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n">42.0%</td><td class="n">[32.8, 51.8]</td><td class="n">84.0%</td><td class="n">0.75</td><td class="n">2.23</td><td class="n">6.7 GB</td></tr>
+<tr><td>天真基準</td><td class="n bad">25.0%</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">0</td><td class="n">0</td></tr>
 </table>
 
-<h3>成對 McNemar 精確檢定（同 84 題）</h3>
+<h3>成對 McNemar 精確檢定（同 100 題）</h3>
 <table>
 <tr><th>比較</th><th class="n">A 獨對</th><th class="n">B 獨對</th><th class="n">雙尾 p</th><th>判定</th></tr>
-<tr><td>Qwen3.8-27B vs Qwen2.5-VL-7B</td><td class="n">22</td><td class="n">4</td><td class="n">0.0005</td><td class="ok">顯著</td></tr>
-<tr><td>Qwen3.8-27B vs Qwen3-VL-8B</td><td class="n">15</td><td class="n">2</td><td class="n">0.0023</td><td class="ok">顯著</td></tr>
-<tr><td>Qwen3-VL-4B vs Qwen3-VL-8B</td><td class="n">8</td><td class="n">0</td><td class="n">0.0078</td><td class="ok">顯著</td></tr>
-<tr><td>Qwen3-VL-4B vs Qwen2.5-VL-7B</td><td class="n">18</td><td class="n">5</td><td class="n">0.0106</td><td class="ok">顯著</td></tr>
-<tr><td><b>Qwen3.8-27B vs Qwen3-VL-4B</b></td><td class="n">7</td><td class="n">2</td><td class="n">0.1797</td><td class="warn">不顯著</td></tr>
-<tr><td>Qwen3-VL-8B vs Qwen2.5-VL-7B</td><td class="n">15</td><td class="n">10</td><td class="n">0.4244</td><td class="warn">不顯著</td></tr>
+<tr><td>Qwen3.8-27B vs Qwen2.5-VL-7B</td><td class="n">28</td><td class="n">9</td><td class="n">0.0026</td><td class="ok">顯著</td></tr>
+<tr><td>Qwen3-VL-4B vs Qwen2.5-VL-7B</td><td class="n">23</td><td class="n">9</td><td class="n">0.0201</td><td class="ok">顯著</td></tr>
+<tr><td>Qwen3.8-27B vs Qwen3-VL-8B</td><td class="n">18</td><td class="n">8</td><td class="n">0.0755</td><td class="warn">不顯著</td></tr>
+<tr><td>Qwen3-VL-8B vs Qwen2.5-VL-7B</td><td class="n">19</td><td class="n">10</td><td class="n">0.1360</td><td class="warn">不顯著</td></tr>
+<tr><td><b>Qwen3.8-27B vs Qwen3-VL-4B</b></td><td class="n">10</td><td class="n">5</td><td class="n">0.3018</td><td class="warn">不顯著</td></tr>
+<tr><td>Qwen3-VL-4B vs Qwen3-VL-8B</td><td class="n">10</td><td class="n">5</td><td class="n">0.3018</td><td class="warn">不顯著</td></tr>
 </table>
-<p>分成兩個層級：<strong>{27B, 4B}</strong> 顯著勝過 <strong>{8B, 7B}</strong>，
-但層級內部無法區分。<strong>參數量與準確率不是單調關係</strong>——
-8B 輸給同世代的 4B，7B 墊底。</p>
+<p>修正真值後<strong>層級分得比初版更淺</strong>：只有 27B 與 4B 顯著勝過 7B，
+其餘配對都不顯著。<strong>參數量與準確率不是單調關係</strong>——
+8B（5.4 GB）輸給同世代的 4B（2.9 GB）。</p>
 
-<h2>四、偏誤分析（比排名更有用）</h2>
+<h2>五、偏誤分析（比排名更有用）</h2>
 <table>
-<tr><th>模型</th><th class="n">高估</th><th class="n">低估</th><th class="n">真值 0 的 25 題答對</th></tr>
-<tr><td>Qwen3.8-27B</td><td class="n">37</td><td class="n">1</td><td class="n ok">22</td></tr>
-<tr><td>Qwen3-VL-4B</td><td class="n">43</td><td class="n">0</td><td class="n">17</td></tr>
-<tr><td>Qwen3-VL-8B</td><td class="n">51</td><td class="n">0</td><td class="n">14</td></tr>
-<tr><td>Qwen2.5-VL-7B</td><td class="n">53</td><td class="n">3</td><td class="n bad">2</td></tr>
+<tr><th>模型</th><th class="n">高估</th><th class="n">低估</th><th class="n">每題淨偏移</th><th class="n">真值 0 的 25 題答對</th></tr>
+<tr><td>Qwen3.8-27B</td><td class="n">23</td><td class="n">16</td><td class="n">+0.16</td><td class="n ok">24</td></tr>
+<tr><td>Qwen3-VL-4B</td><td class="n">31</td><td class="n">13</td><td class="n">+0.27</td><td class="n">19</td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n">39</td><td class="n">10</td><td class="n">+0.44</td><td class="n">14</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n">43</td><td class="n">15</td><td class="n">+0.35</td><td class="n bad">2</td></tr>
 </table>
 
-<div class="box warn">
-<b>Qwen2.5-VL-7B 幾乎從不回答「0」</b>
-84 題中只答過 2 次 0，而真值有 25 題是 0。它有「畫面裡一定有燈」的先驗。
-這解釋了它「誤差≤1 有 79.8% 但完全正確只有 33.3%」——很少錯得離譜，但也很少答對。
+<div class="box err">
+<b>初版的「系統性高估」大半是真值錯誤造成的</b>
+舊真值下是「高估 37~53 次 vs 低估 0~3 次」，看起來是壓倒性的單向偏誤；
+修正後變成「高估 23~43 vs 低估 10~16」，每題淨偏移只有 +0.16~+0.44。
+<strong>據此推導的「盤點時 VLM 會回報東西都在、對安全檢查危險」已收回。</strong>
+偏誤仍存在但幅度小得多，且 27B 幾乎平衡（23 vs 16）。
 </div>
 
-<p><strong>依真值分層看得更清楚</strong>（圖 d）：n=0 最容易（27B 88%），
-<strong>n=1 反而最難</strong>（各模型僅 24~32%），n=2 又回升到 44~56%。
-這不是「越多越難」的單調關係，而是高估偏誤的直接表現——
-只有一具燈時，模型傾向答 2 具以上。</p>
+<div class="box warn">
+<b>唯一在兩種真值定義下都成立的缺陷</b>
+Qwen2.5-VL-7B 在 100 題中只答過 2 次 0，而真值有 25 題是 0。
+它有「畫面裡一定有燈」的先驗——這在<strong>舊真值下也是 2/25</strong>，
+不受真值定義影響，是模型本身的問題。需要偵測「東西不在」時不能用它。
+</div>
 
-<h2>五、完整對照表：三個領域，沒有全能冠軍</h2>
+<h2>六、完整對照表：三個領域，沒有全能冠軍</h2>
 <table>
 <tr><th>模型</th><th class="n">工程圖尺寸<br><span style="font-weight:400">n=2 · 基準 0%</span></th>
 <th class="n">視圖計數<br><span style="font-weight:400">n=3 · 基準 66.7%</span></th>
-<th class="n">教室計數<br><span style="font-weight:400">n=84 · 基準 29.8%</span></th>
+<th class="n">教室計數<br><span style="font-weight:400">n=100 · 基準 25.0%</span></th>
 <th class="n">秒/張</th><th class="n">記憶體</th></tr>
-<tr><td>Qwen3.8-27B</td><td class="n ok">93.8%</td><td class="n bad">33.3%</td><td class="n ok">54.8%</td><td class="n">5.46</td><td class="n">20.5 GB</td></tr>
-<tr><td>Qwen3-VL-4B</td><td class="n bad">43.8%</td><td class="n ok">100%</td><td class="n ok">48.8%</td><td class="n ok">1.15</td><td class="n ok">4.3 GB</td></tr>
-<tr><td>Qwen3-VL-8B</td><td class="n ok">93.8%</td><td class="n ok">100%</td><td class="n">39.3%</td><td class="n">1.92</td><td class="n">6.8 GB</td></tr>
-<tr><td>Qwen2.5-VL-7B</td><td class="n ok">93.8%</td><td class="n">66.7%</td><td class="n bad">33.3%</td><td class="n">2.26</td><td class="n">6.7 GB</td></tr>
+<tr><td>Qwen3.8-27B</td><td class="n ok">93.8%</td><td class="n bad">33.3%</td><td class="n">61.0%</td><td class="n">5.42</td><td class="n">20.5 GB</td></tr>
+<tr><td>Qwen3-VL-4B</td><td class="n bad">43.8%</td><td class="n ok">100%</td><td class="n">56.0%</td><td class="n ok">1.12</td><td class="n ok">4.3 GB</td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n ok">93.8%</td><td class="n ok">100%</td><td class="n">51.0%</td><td class="n">1.89</td><td class="n">6.8 GB</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n ok">93.8%</td><td class="n">66.7%</td><td class="n bad">42.0%</td><td class="n">2.23</td><td class="n">6.7 GB</td></tr>
 </table>
 
 <div class="box warn">
 <b>沒有任何模型三個領域都最好</b>
 27B 工程圖強但視圖最弱（33.3%，唯一低於天真基準）；
-4B 視圖滿分、教室次高，但工程圖 02 號題完全讀不出來；
-8B 是唯一同時在工程圖與視圖都拿高分的，卻是教室計數最弱之一。
+4B 視圖滿分、教室 MAE 最佳，但工程圖 02 號題完全讀不出來；
+8B 是唯一同時在工程圖與視圖都拿高分的。
 <strong>選模型必須依任務，沒有通用答案。</strong>
 </div>
 
@@ -173,7 +225,7 @@ VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效�
 更正後 4B 與 8B 從 66.7% 升到 100%、27B 從 66.7% 降到 33.3%——
 <strong>一個真值錯誤就反轉了排名</strong>（僅 3 題，本來就極度敏感）。</p>
 
-<h2>六、方法學：四次「量測工具壞掉」</h2>
+<h2>七、方法學：五次「量測工具壞掉」</h2>
 <p>本次評測過程中，有四次我先懷疑被測對象、實際上錯的是量尺：</p>
 <table>
 <tr><th>症狀</th><th>真相</th></tr>
@@ -181,16 +233,25 @@ VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效�
 <tr><td>潔牙 zone 排名有明顯差距</td><td>測試集 153/154 是同一答案，<b>天真基準 99.4%</b> 勝過所有模型</td></tr>
 <tr><td>Qwen3.8-27B 工程圖得 0 分</td><td>評分只收 <code>int/float</code>，模型回傳 <code>"70,18"</code>（歐規逗號小數點）被整批丟棄</td></tr>
 <tr><td>模型答「6 個視圖」被判錯</td><td>05 號圖同時畫第一角法與第三角法各一組三視圖，<b>真值就是 6</b>，錯的是我照文字描述寫的答案</td></tr>
+<tr><td class="bad">教室計數「所有模型系統性高估」</td><td class="bad"><b>可見性定義錯誤</b>：用「高斯可見比例」而非「畫面像素面積」，
+燈具自己遮住自己導致比例天生偏低。一張圖 7 具燈具被算成 1 具。<b>此錯誤已發佈後才發現</b></td></tr>
 </table>
 <div class="box">
 <b>因此本評測的固定流程</b>
 ① 每個領域先算天真基準　② 檢查預測分布 vs 真值分布
 ③ 自動產生的真值必須人工抽查　④ 下「A 比 B 差」的結論前，先驗證評分程式對已知正確輸入會給滿分
+⑤ <b>模型與真值大量不一致時，先假設真值有問題再假設模型有問題</b>
+</div>
+<div class="box err">
+<b>第五次是最嚴重的：已發佈後才發現</b>
+前四次都在發佈前抓到。第五次是在補測試圖時，看到「truth=1 但四個模型都答 5~6」
+覺得不對勁才回頭查——如果沒做這批圖，錯誤結論會一直留在頁面上。
+<strong>「把資料畫出來看」本身就是一道獨立的檢查。</strong>
 </div>
 
-<h2>七、限制</h2>
+<h2>八、限制</h2>
 <ul>
-<li><strong>只有單一場景。</strong>教室 84 題全來自同一個 3DGS 重建（家政教室）。
+<li><strong>只有單一場景。</strong>教室 100 題全來自同一個 3DGS 重建（家政教室）。
 嘗試擴到生科教室四失敗——該場景的<strong>天花板本身是亮白色</strong>，
 亮度門檻無法把燈具和天花板分開（兩者都在 lum=1.0 飽和），
 自動標註管線目前<strong>不跨場景</strong>。</li>
@@ -199,7 +260,7 @@ VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效�
 <li><strong>工程圖與視圖領域樣本過少</strong>（2 題、3 題），僅供參考不能排名。</li>
 </ul>
 
-<h2>八、是否該用 Colab 微調</h2>
+<h2>九、是否該用 Colab 微調</h2>
 <div class="box err">
 <b>建議：現在不要</b>
 不是技術做不到，而是微調解不了真正的瓶頸。
