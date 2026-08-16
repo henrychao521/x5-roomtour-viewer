@@ -118,11 +118,26 @@ ul{padding-left:22px}li{margin:6px 0}
 兩個方向都有。這正是下一節說「此任務沒有明確真值」的直接證據。</strong></figcaption>
 </figure>
 
+<figure>
+<img src="assets/gauss-explorer/bench_drawings.jpg" alt="工程圖測試集">
+<figcaption>工程圖測試集（外部 Wikimedia 圖，非自家產出）。
+上排為尺寸讀取題，中下排為視圖計數題，右下的蝸輪減速器含 21 件 BOM，未納入本次評測。</figcaption>
+</figure>
+
+<div class="box err">
+<b>02 號圖是評分 bug 的現場</b>
+放大右上那張托架板，標註寫的是 <code>70,18</code>、<code>29,39</code>、
+<code>Ø44,38</code>、<code>R32,6</code>——<strong>歐規以逗號當小數點</strong>。
+Qwen3.8-27B 忠實照著讀出這些字串，我的評分程式只收 <code>int/float</code>，
+整批丟棄後判它 0 分。<strong>模型讀對了，錯的是量尺。</strong>
+</div>
+
 <div class="box warn">
-<b>工程圖的測試圖這次沒能附上</b>
-5 張工程圖存放在外接碟 <code>/Volumes/3D</code>，本次整理時該路徑回報
-<code>Operation not permitted</code>（macOS 權限限制，session 中途才出現，先前可讀）。
-不以其他圖替代。
+<b>05 號圖是真值寫錯的現場</b>
+左下那張標「FIRST ANGLE SYSTEM / THIRD ANGLE SYSTEM」，
+兩組系統<strong>各畫一組三視圖</strong>，正投影視圖共 6 個。
+我照 MANIFEST 的文字描述「第一/第三角投影三視圖」寫成 3，
+更正後 4B 與 8B 從 66.7% 升到 100%、27B 從 66.7% 降到 33.3%——<strong>排名反轉。</strong>
 </div>
 
 <h2>四、結果</h2>
