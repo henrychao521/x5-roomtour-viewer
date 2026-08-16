@@ -127,16 +127,51 @@ VLM 會傾向回報「東西都在」——這對安全檢查是危險的失效�
 這不是「越多越難」的單調關係，而是高估偏誤的直接表現——
 只有一具燈時，模型傾向答 2 具以上。</p>
 
-<h2>五、工程圖領域：可用訊號</h2>
+<h2>五、完整對照表：三個領域，沒有全能冠軍</h2>
 <table>
-<tr><th>模型</th><th class="n">01 刀柄召回</th><th class="n">02 托架板召回</th><th class="n">平均</th></tr>
-<tr><td>Qwen3.8-27B</td><td class="n">87.5%</td><td class="n">100%</td><td class="n ok">93.8%</td></tr>
-<tr><td>Qwen2.5-VL-7B</td><td class="n">87.5%</td><td class="n">100%</td><td class="n ok">93.8%</td></tr>
-<tr><td>Qwen3-VL-8B</td><td class="n">87.5%</td><td class="n">100%</td><td class="n ok">93.8%</td></tr>
-<tr><td>Qwen3-VL-4B</td><td class="n">87.5%</td><td class="n bad">0%</td><td class="n">43.8%</td></tr>
+<tr><th>模型</th><th class="n">工程圖尺寸<br><span style="font-weight:400">n=2 · 基準 0%</span></th>
+<th class="n">視圖計數<br><span style="font-weight:400">n=3 · 基準 66.7%</span></th>
+<th class="n">教室計數<br><span style="font-weight:400">n=84 · 基準 29.8%</span></th>
+<th class="n">秒/張</th><th class="n">記憶體</th></tr>
+<tr><td>Qwen3.8-27B</td><td class="n ok">93.8%</td><td class="n bad">33.3%</td><td class="n ok">54.8%</td><td class="n">5.46</td><td class="n">20.5 GB</td></tr>
+<tr><td>Qwen3-VL-4B</td><td class="n bad">43.8%</td><td class="n ok">100%</td><td class="n ok">48.8%</td><td class="n ok">1.15</td><td class="n ok">4.3 GB</td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n ok">93.8%</td><td class="n ok">100%</td><td class="n">39.3%</td><td class="n">1.92</td><td class="n">6.8 GB</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n ok">93.8%</td><td class="n">66.7%</td><td class="n bad">33.3%</td><td class="n">2.26</td><td class="n">6.7 GB</td></tr>
 </table>
-<p>三個模型都能可靠讀出圖上的標註尺寸（召回 93.8%）。
-對 2D→CAD 路線是實用訊號，值得接進流程。<strong>但只有 2 題，樣本不足以排名。</strong></p>
+
+<div class="box warn">
+<b>沒有任何模型三個領域都最好</b>
+27B 工程圖強但視圖最弱（33.3%，唯一低於天真基準）；
+4B 視圖滿分、教室次高，但工程圖 02 號題完全讀不出來；
+8B 是唯一同時在工程圖與視圖都拿高分的，卻是教室計數最弱之一。
+<strong>選模型必須依任務，沒有通用答案。</strong>
+</div>
+
+<h3>工程圖尺寸讀取（逐題）</h3>
+<table>
+<tr><th>模型</th><th class="n">01 刀柄 召回/精確</th><th class="n">02 托架板 召回/精確</th><th class="n">平均召回</th></tr>
+<tr><td>Qwen3.8-27B</td><td class="n">87.5% / 70.0%</td><td class="n">100% / <b>57.1%</b></td><td class="n ok">93.8%</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n">87.5% / 70.0%</td><td class="n">100% / 52.9%</td><td class="n ok">93.8%</td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n">87.5% / 63.6%</td><td class="n">100% / 41.2%</td><td class="n ok">93.8%</td></tr>
+<tr><td>Qwen3-VL-4B</td><td class="n">87.5% / <b>77.8%</b></td><td class="n bad">0% / 0%</td><td class="n">43.8%</td></tr>
+</table>
+<p>三個模型都能可靠讀出標註尺寸（召回 93.8%），對 2D→CAD 路線是實用訊號。
+但<strong>精確率只有 41~78%</strong>——它們會多讀出圖上不存在的數字，
+接進自動建模流程前必須有尺寸合理性檢核。4B 在 02 號圖完全讀不出來（回傳空集合），
+是唯一的硬失敗。<strong>只有 2 題，不足以排名。</strong></p>
+
+<h3>正投影視圖計數（逐題）</h3>
+<table>
+<tr><th>模型</th><th class="n">03（真值 3）</th><th class="n">05（真值 6）</th><th class="n">06（真值 6）</th><th class="n">正確率</th></tr>
+<tr><td>Qwen3-VL-4B</td><td class="n ok">3</td><td class="n ok">6</td><td class="n ok">6</td><td class="n ok">100%</td></tr>
+<tr><td>Qwen3-VL-8B</td><td class="n ok">3</td><td class="n ok">6</td><td class="n ok">6</td><td class="n ok">100%</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td class="n ok">3</td><td class="n ok">6</td><td class="n bad">5</td><td class="n">66.7%</td></tr>
+<tr><td>Qwen3.8-27B</td><td class="n bad">2</td><td class="n bad">3</td><td class="n ok">6</td><td class="n bad">33.3%</td></tr>
+</table>
+<p>05 號圖的真值原本被我依 MANIFEST 文字寫成 3，實際看圖才發現它畫的是
+<strong>第一角法與第三角法各一組三視圖，共 6 個</strong>。
+更正後 4B 與 8B 從 66.7% 升到 100%、27B 從 66.7% 降到 33.3%——
+<strong>一個真值錯誤就反轉了排名</strong>（僅 3 題，本來就極度敏感）。</p>
 
 <h2>六、方法學：四次「量測工具壞掉」</h2>
 <p>本次評測過程中，有四次我先懷疑被測對象、實際上錯的是量尺：</p>
