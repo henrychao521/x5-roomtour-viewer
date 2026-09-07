@@ -20,7 +20,8 @@ th{background:#151a23;color:#cfe} .idc{width:34px} td.idc{text-align:center;colo
 .vote{white-space:nowrap;width:230px} .v{border:1px solid var(--line);background:#151a23;color:var(--ink);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:13px;margin-right:4px}
 .v.on.ok{background:#123a26;border-color:#39d98a;color:#39d98a} .v.on.no{background:#3a1414;border-color:#ff6b6b;color:#ff6b6b}
 .fix{display:block;margin-top:6px;width:100%;background:#0c1017;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:13px}
-.bar{position:sticky;bottom:0;background:linear-gradient(#0b0e14cc,#0b0e14);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 -16px -80px}
+/* 負左右邊距讓工具列滿版，但沒有容器吸收它，桌機與手機都會多出 16px 橫向捲動 */
+.bar{position:sticky;bottom:0;max-width:100%;box-sizing:border-box;background:linear-gradient(#0b0e14cc,#0b0e14);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 -80px}
 button.big{background:var(--acc);color:#111;border:0;border-radius:8px;padding:10px 15px;font-size:15px;font-weight:700;cursor:pointer}
 #outbox{white-space:pre-wrap;background:#0c1017;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px;font-family:ui-monospace,monospace;font-size:12.5px;display:none}
 .tag{display:inline-block;background:#151a23;border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim);margin-right:6px}
@@ -41,6 +42,7 @@ button.big{background:var(--acc);color:#111;border:0;border-radius:8px;padding:1
 </div>
 
 <h2>② 房間・窗戶・排煙管（請確認）</h2>
+<div style="overflow-x:auto">
 <table><tr><th>#</th><th colspan=2>我的判讀</th><th>您的裁定</th></tr><tr data-id="房間" data-label="房間外形/尺寸">
       <td class="idc">房間</td><td colspan=2>長方形工坊，約 <b>8.1m(寬) × 12.1m(長) × 3.4m(高)</b>；長軸沿南北。 <span class="conf" style="color:#39d98a">〔信心高〕</span></td>
       <td class="vote"><button class="v ok" onclick="vote(this,'ok')">✅對</button>
@@ -54,6 +56,7 @@ button.big{background:var(--acc);color:#111;border:0;border-radius:8px;padding:1
       <td class="vote"><button class="v ok" onclick="vote(this,'ok')">✅對</button>
       <button class="v no" onclick="vote(this,'no')">❌錯</button>
       <input class="fix" placeholder="✏️ 修正"></td></tr></table>
+</div>
 
 <h2>③ 設備／機台（11 區・請逐區確認身份）</h2>
 <p class=dim>座標(X,Y) 為此頁俯視座標(公尺)；尺寸/高度為偵測值；主色來自高斯顏色(已被算圖洗淡，僅供參考)。同一「區」可能含不只一台。</p>
@@ -163,7 +166,10 @@ function tally(){let ok=0,no=0,tot=document.querySelectorAll('tr[data-id]').leng
   document.getElementById('tally').textContent=`已裁定 ${ok+no}/${tot}（✅${ok} ❌${no}）`;}
 function gen(){let L=['【工坊物件辨識・使用者裁定】'];
   document.querySelectorAll('tr[data-id]').forEach(tr=>{
-    const id=tr.dataset.id,lab=tr.dataset.label;
+    const id=tr.dataset.id;
+    // data-label 內含 <b> 之類的標記（表格要用），純文字輸出要先剝掉，
+    // 否則貼回來的裁定會長成「窗戶在<b>兩側長牆</b>」。
+    const lab=tr.dataset.label.replace(/<[^>]*>/g,'');
     const ok=tr.querySelector('.v.on.ok'),no=tr.querySelector('.v.on.no'),fix=tr.querySelector('.fix').value.trim();
     let m=ok?'✅對':no?'❌錯':'—未答';
     if(fix)m+=' → 修正:'+fix;

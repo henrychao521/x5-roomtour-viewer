@@ -11,7 +11,6 @@
      "id": "home-ec-classroom",
      "name": "家政生科教室",
      "splat": "../assets/walk.compressed.ply",
-     "sog": "../assets/classroom.sog",
      "occupancy": "../assets/walk_occupancy.json",
      "live_camera": "cklivingtech5 (MJPEG :8001/video_feed)",
      "transform": {

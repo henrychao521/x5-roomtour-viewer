@@ -187,7 +187,7 @@
     <div class="body">
       <p><b>做法：</b>在 GPU 鄰域迴圈裡順便累加每顆高斯的<b>鄰居共變異數</b>，host 端用 <code>eigvalsh</code> 求 PCA 特徵值 λ₀≤λ₁≤λ₂，取<b>表面變異度 SV = λ₀/(λ₀+λ₁+λ₂)</b>（Pauly 2002）。低 SV＝鄰居共面（真表面，即使高斯很薄也該留）；高 SV＝瀰漫團塊（霧）。這解決了「薄≠病，不貼面才是病」——單看形狀（各向異性）會把貼在牆上的薄高斯誤當針狀霧。</p>
       <div class="refs">
-        <a href="https://graphics.stanford.edu/papers/surfacesimplification/" target="_blank">▸ Pauly 等 — Point-based surface simplification（surface variation 出處）</a>
+        <a href="https://doi.org/10.1109/VISUAL.2002.1183771" target="_blank">▸ Pauly 等 — Point-based surface simplification（surface variation 出處）</a>
       </div>
     </div>
   </details>

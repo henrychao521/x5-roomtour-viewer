@@ -104,6 +104,8 @@ function draw(){
     `模式：${mode}<br>目前人數：<b>${Object.keys(tracks).length}</b><br>累計軌跡點：<b>${total}</b><br>室內：${(r.x1-r.x0).toFixed(1)}×${(r.z1-r.z0).toFixed(1)} m`;
 }
 // 建築平面圖風格底圖
+// 註：底圖幾何來自 assets/arch_elements.json，該量測（軸對齊剖面量斜房間）已被推翻，
+// 見 lt4-realign-v2.html；平面比例偏大，重繪需以 Manhattan 擬合結果重跑產生器。
 function drawArch(s,r){
   const dpr=devicePixelRatio, T=arch.wall_t;
   // 牆體 poché（外框-內框灰填）
