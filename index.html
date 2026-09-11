@@ -130,9 +130,9 @@
       <p>WASD / 觸控搖桿走動，牆與家具有物理碰撞，雙層垂直感知，支援 VR。</p>
       <span class="chip">推薦入口</span><span class="go">進入 →</span></a>
     <a class="card" href="livingtech3-log.html">
-      <div class="ic">🧪</div><h3>生科教室三・cubemap + rig（新，品質未達標）</h3>
-      <p><b>相機全程橫倒，改用 cubemap 六面繞過 FlowState 扶正</b>。從重建反推抓出同幀六面的假平移 0.4–0.7（本該零基線），上 rig 約束後共光心離散度歸零、註冊 229→317。又抓到 scale 38.76 的巨大高斯，過濾 9% 讓過度繪製從 230 降到 45.8。<b>但點雲始終稀疏（track length 2.97），成像仍是霧</b> — 完整診斷、四個 shell 陷阱與下一步都在裡面。</p>
-      <span class="chip">新・失敗診斷</span><span class="go">看紀錄 →</span></a>
+      <div class="ic">🧪</div><h3>生科教室三・官方縫合重建（新）</h3>
+      <p><b>前兩輪用 ffmpeg 直縫只得到一團霧</b>——量到兩條接縫錯位 15–19 倍（原廠兩顆鏡頭畸變正負相反，ffmpeg 不讀）。改走 Insta360 Studio 官方縫合後，影像數不變，<b>3D 點 5,006→40,845、track length 2.78→5.07</b>，畫面看得出教室。飄絲仍未解：透明度過濾、連通叢集、夾針三法都試過，數據有動畫面沒變。</p>
+      <span class="chip">新・根因實證</span><span class="go">看紀錄 →</span></a>
     <a class="card" href="vlm-bench.html">
       <div class="ic">📊</div><h3>本機 VLM 大範圍評測（新）</h3>
       <p><b>4 模型 × 3 領域、教室計數 100 題統計檢定</b>：2.9GB 的 Qwen3-VL-4B 是實務最佳（MAE 0.57、誤差≤1 達 87% 皆為四者之冠），與 15GB 的 27B 統計上無法區分（p=0.302）卻快 4.8 倍。含測試圖樣本、五次「量測工具壞掉」的方法學紀錄（<b>其中一次已發佈後才發現並更正</b>）與 Colab 微調建議。</p>

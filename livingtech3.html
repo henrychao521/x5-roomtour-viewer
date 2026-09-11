@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>生科教室三・cubemap + rig 重建（第一版，品質待改善）</title>
+<title>生科教室三・Insta360 官方縫合重建（第三輪）</title>
 <style>
   html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;font-family:-apple-system,"PingFang TC",system-ui;color:#e6edf3}
   #c{width:100vw;height:100vh;display:block;touch-action:none;cursor:grab}
@@ -18,18 +18,17 @@
 </style></head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud"><span class="tag">cubemap 6 面/幀 · rig 共光心</span><br><b>生科教室三</b> 2026-09-08 拍攝<br><span style="color:#8b97a7">381 張 · 38.4 萬高斯 · 品質待改善</span><br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
+<div id="hud"><span class="tag">官方縫合 · 6 方位/幀</span><br><b>生科教室三</b> 2026-09-08 拍攝<br><span style="color:#8b97a7">329 張 · 196 萬高斯 · 飄絲待處理</span><br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
 <a id="back" href="livingtech3-log.html">← 建置紀錄</a>
-<div id="load"><div style="font-size:14px;color:#e6edf3">生科教室三・cubemap + rig</div><div id="bar"><div id="fill"></div></div><div id="pct">下載場景…</div></div>
+<div id="load"><div style="font-size:14px;color:#e6edf3">生科教室三・官方縫合（第三輪）</div><div id="bar"><div id="fill"></div></div><div id="pct">下載場景…</div></div>
 <script type="module">
 import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
 
-// === 生科教室三:139 幀 x 6 cubemap 面、381/695 註冊、重投影 1.22px ===
-// 相機全程橫倒且手持有 roll(相機上方向一致性中位 63.5deg,不可用),
-// 改用 381 台相機中心的 PCA 最小變異軸當重力方向。
-// 驗證:對齊後水平 10.30x8.71m、高度範圍 2.33m,是教室的合理比例。
-const ALIGN=[-0.14362,0.00000,-0.73382,0.66399];
-const SPAWN=[-0.043,0.116,0.029];        // 381 台相機質心（rig 共光心）
+// === 生科教室三第三輪:Insta360 官方縫合 → 80 幀 x 6 yaw,329/362 註冊、40,845 點、track 5.07、重投影 0.85px ===
+// 官方縫合已 FlowState 扶正,329 台相機上方向一致性中位 0.68deg,直接取平均當重力方向。
+// 驗證:對齊後水平 11.58x10.24m、相機高度範圍 1.74m。
+const ALIGN=[0.56201,-0.00000,0.82155,0.09593];
+const SPAWN=[-0.055,-0.025,-0.021];      // 329 台相機質心
 
 const canvas=document.getElementById('c');
 const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas),touch:new pc.TouchDevice(canvas),
@@ -66,7 +65,7 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();idle=0;
 },{passive:false});
 
 async function load(){
-  const res=await fetch('assets/livingtech3_r2.compressed.ply');
+  const res=await fetch('assets/livingtech3_r3.compressed.ply');
   const total=+res.headers.get('Content-Length')||19500000;
   const rd=res.body.getReader(); const ch=[]; let got=0;
   for(;;){const{done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length;

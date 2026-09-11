@@ -1,181 +1,132 @@
 <!DOCTYPE html>
 <html lang="zh-Hant"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>生科教室三 3DGS 建置紀錄 2026-09-08</title>
+<title>生科教室三 3DGS 建置紀錄</title>
 <style>
  :root{--bg:#0b0e14;--fg:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--line:#222b38;--card:#121722}
- *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);
-  font:15px/1.75 -apple-system,"PingFang TC",system-ui}
+ *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.75 -apple-system,"PingFang TC",system-ui}
  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
- h1{font-size:26px;margin:0 0 6px} h2{font-size:19px;margin:38px 0 10px;color:var(--acc)}
- h3{font-size:15.5px;margin:22px 0 8px}
+ h1{font-size:26px;margin:0 0 6px} h2{font-size:19px;margin:38px 0 10px;color:var(--acc)} h3{font-size:15.5px;margin:22px 0 8px}
  .sub{color:var(--mut);font-size:13.5px;margin-bottom:26px}
  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
- table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
- th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}
- th{background:#161c28;color:var(--mut);font-weight:600}
+ .tw{overflow-x:auto} table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+ th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top} th{background:#161c28;color:var(--mut);font-weight:600}
  code{background:#161c28;padding:1px 6px;border-radius:5px;font-size:12.5px;color:#ffd7b0}
  pre{background:#161c28;border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font-size:12.5px}
- a{color:var(--acc)} .bad{color:#ff6b6b} .good{color:#5ddb8f} .warn{color:#ffc857}
- .lead{border-left:3px solid var(--acc);padding-left:14px;color:#cbd5e1}
+ a{color:var(--acc)} .bad{color:#ff6b6b} .good{color:#5ddb8f} .lead{border-left:3px solid var(--acc);padding-left:14px;color:#cbd5e1}
  ul{padding-left:20px}
 </style></head><body><div class="wrap">
 
 <h1>生科教室三 · 3DGS 建置紀錄</h1>
-<div class="sub">2026-09-08 拍攝與重建　·　Mac Studio M4 Max / 36GB　·　<a href="livingtech3.html">→ 開啟目前的場景</a></div>
+<div class="sub">2026-09-08 拍攝，09-09 完成第三輪　·　Mac Studio M4 Max / 36GB　·　<a href="livingtech3.html">→ 開啟場景</a></div>
 
 <div class="card lead">
-<b>結論先講：這一版重建品質不足</b>，畫面看不出教室結構，只有一團霧。
-素材本身沒問題（下方有驗證），瓶頸在取樣方式。這頁記錄完整的診斷過程與下一步。
+<b>第三輪成功：畫面看得出教室</b>（木工長桌、磚牆、窗戶、天花板燈具、機具）。
+前兩輪失敗的根因是<b>跳過了 Insta360 Studio 官方縫合</b>，改用 ffmpeg 直縫。<br>
+<b>仍未解決：飄絲</b>。三種清理法都試過，數據有動、畫面沒變，詳見第 5 節。<br>從拍攝路徑上以第一人稱看幾乎乾淨；飄絲主要出現在相機沒到過的角度（例如從天花板高度俯視）。
 </div>
 
-<h2>1. 素材</h2>
-<table>
-<tr><th>項目</th><th>值</th></tr>
-<tr><td>檔案</td><td><code>VID_20260908_122204_00_001.insv</code></td></tr>
-<tr><td>長度 / 大小</td><td>348.88 秒（5 分 49 秒）／ 6.33 GB</td></tr>
-<tr><td>格式</td><td>兩條 3840×3840 HEVC 魚眼 + AAC + gyro，145 Mbps</td></tr>
-<tr><td>sha256</td><td><code>dece9732ea35a395fab0e5e515a24b90ed525c0f4571f1f743d8c82a3896dd59</code></td></tr>
-<tr><td>歸檔</td><td><code>/Volumes/3D/DCIM-scans/x5-card-2026-09-08/</code>（size + sha256 雙重驗證通過）</td></tr>
-</table>
+<h2>1. 三輪對照</h2>
+<div class="tw"><table>
+<tr><th></th><th>第一輪</th><th>第二輪</th><th>第三輪</th></tr>
+<tr><td>縫合</td><td>ffmpeg 直縫</td><td>ffmpeg 直縫</td><td class="good">Insta360 Studio 官方</td></tr>
+<tr><td>採樣</td><td>70 幀 × cubemap 6 面</td><td>139 幀 × cubemap 6 面</td><td>80 幀 × 6 方位（間隔 60°）</td></tr>
+<tr><td>進 COLMAP 影像</td><td>357</td><td>695</td><td>362</td></tr>
+<tr><td>註冊</td><td>317（88.8%）</td><td>381（54.8%，碎成 5 片）</td><td class="good">329（90.9%）</td></tr>
+<tr><td>3D 點</td><td class="bad">5,006</td><td class="bad">7,356</td><td class="good">40,845</td></tr>
+<tr><td>mean track length</td><td class="bad">2.78</td><td class="bad">2.97</td><td class="good">5.07</td></tr>
+<tr><td>重投影誤差</td><td>1.23px</td><td>1.22px</td><td class="good">0.85px</td></tr>
+<tr><td>訓練後高斯數（上限 200 萬）</td><td class="bad">71,261</td><td>417,338</td><td class="good">2,000,000</td></tr>
+<tr><td>畫面</td><td class="bad">一團霧</td><td class="bad">一團霧</td><td class="good">看得出教室（有飄絲）</td></tr>
+</table></div>
+<p>第一輪與第三輪的影像數幾乎相同（357 vs 362），<b>光是換掉縫合</b>，點數多 8 倍、track length 從 2.78 升到 5.07。</p>
 
-<h2>2. 為什麼不走既有流程</h2>
-<p>ffmpeg 直縫出的畫面顯示<b>相機全程橫倒約 90°</b>（地板在畫面上半、天花板在下半）。
-既有 <code>run_scene.sh</code> 用固定 yaw、pitch=0 採樣，隱含假設「相機直立」，這個前提不成立。
-過去對同類素材的做法是回 Insta360 Studio 走 FlowState 陀螺儀扶正，但那是 GUI 流程。</p>
-<p class="lead">改法：<b>用 cubemap 六面取代固定 yaw 採樣</b>。六面覆蓋整個球面、不預設任何重力方向，
-每一幀的旋轉交給 SfM 自己解 —— FlowState 扶正對 SfM 並非必要，它只是「固定角度採樣」的前提。
-整條流程純 CLI 可跑完。</p>
+<h2>2. 根因：ffmpeg 直縫不讀原廠鏡頭參數</h2>
+<p>X5 記憶卡的 <code>DCIM/fileinfo_list.list</code> 內有每顆鏡頭的校正參數，<code>ffmpeg v360=dfisheye</code> 用的是理想魚眼模型，完全不讀：</p>
+<div class="tw"><table>
+<tr><th></th><th>鏡頭 0</th><th>鏡頭 1</th></tr>
+<tr><td>光學中心</td><td>(2650.240, 2699.650)</td><td>(2661.984, 8066.020)</td></tr>
+<tr><td>有效半徑</td><td>2689.060</td><td>2695.140（差 6 px）</td></tr>
+<tr><td>畸變係數</td><td>(+0.623, +0.307)</td><td>(−0.393, +0.203)　← 正負相反</td></tr>
+<tr><td>角度</td><td>90.231°</td><td>89.879°</td></tr>
+</table></div>
+<h3>量測接縫錯位</h3>
+<p>兩顆魚眼在全景圖的接縫位於左右 ±90°（7680 寬時 x=1920、5760）。沿水平方向算亮度差，取接縫處峰值 ÷ 全圖中位數：</p>
+<div class="tw"><table>
+<tr><th></th><th>接縫 A</th><th>接縫 B</th><th>非接縫對照（20 處）最大</th></tr>
+<tr><td>ffmpeg 直縫</td><td class="bad">15.27×</td><td class="bad">18.74×</td><td>2.12×</td></tr>
+<tr><td>Insta360 官方縫合</td><td>3.34×</td><td class="good">1.21×</td><td>2.25×</td></tr>
+</table></div>
+<p>ffmpeg 版的尖峰只有<b>一個像素寬</b>，是縫合錯位，不是場景邊緣。幾何錯誤的全景圖切出來的每張影像都帶著錯誤，特徵匹配自然對不起來。</p>
 
-<h2>3. 兩個真正解掉的問題</h2>
+<h3>我當時的推論錯在哪</h3>
+<p class="lead">相機全程橫倒，我推論「cubemap 六面不預設重力方向，所以不需要 FlowState 扶正，因此不需要 Insta360 Studio」。<br>
+前半對、後半錯——<b>扶正是方向問題（可以繞過），官方縫合是幾何精度問題（繞不過）</b>，兩件事被我混為一談。
+專案舊紀錄早已寫著「官方縫合讓畫質從可辨識躍升到可走動」，我引用過卻沒套用。</p>
 
-<h3>3a. 同幀六面的「假平移」→ 上 rig 約束</h3>
-<p>第一次重建分裂成 229 + 24 張兩塊。從重建反推每個面相對 f0 的關係：</p>
-<table>
-<tr><th>face</th><th>實測旋轉</th><th>理論值</th><th>相機中心距離（本該為 0）</th></tr>
-<tr><td>f1</td><td>91.39°</td><td>90°</td><td class="bad">0.396</td></tr>
-<tr><td>f2</td><td>177.95°</td><td>180°</td><td class="bad">0.681</td></tr>
-<tr><td>f3</td><td>90.80°</td><td>90°</td><td class="bad">0.583</td></tr>
-<tr><td>f4</td><td>91.48°</td><td>90°</td><td class="bad">0.621</td></tr>
-<tr><td>f5</td><td>91.19°</td><td>90°</td><td class="bad">0.461</td></tr>
-</table>
-<p>旋轉全對（誤差 1–2°，證明 cube face 幾何與 ffmpeg <code>v360</code> 慣例正確），
-但六個面是<b>同一支相機、同一個光心</b>切出來的，基線恆為零。實測 0.4–0.7，
-而整個場景的相機包絡只有 ±3~6 —— COLMAP 把六面當成六台獨立相機，用編造的平移吸收誤差。</p>
-<p>把實測平均旋轉去比對候選矩陣，每個面都明確對應一個理論值（次佳候選差 88° 以上，完全無歧義）：
-<code>f1=Ry(-90) f2=Ry(180) f3=Ry(90) f4=Rx(-90) f5=Rx(90)</code>。
-用這組精確旋轉 + 零平移寫 <code>rig_config.json</code>，
-<b>matcher 的 97 分鐘完全重用</b>，mapper 只花 10 秒：</p>
-<table>
-<tr><th></th><th>無 rig</th><th>有 rig</th></tr>
-<tr><td>註冊影像</td><td>229（分兩塊）</td><td class="good">317（88.8%）</td></tr>
-<tr><td>同幀六面中心離散度</td><td class="bad">0.40–0.68</td><td class="good">0.00e+00 ✓</td></tr>
-<tr><td>mapper 耗時</td><td>數分鐘</td><td class="good">10 秒</td></tr>
-</table>
-
-<h3>3b. 巨大高斯造成的霧 → scale 過濾</h3>
-<p>訓練後 <code>scale_0</code> 最大值 <b>38.76</b>，而教室尺寸只有約 10 m ——
-有高斯的尺度是整個場景的近 4 倍。移除不到 10%，過度繪製降為 1/5：</p>
-<table>
-<tr><th>門檻</th><th>高斯數</th><th>fill ratio（平均重疊層數）</th><th>場景包圍盒半徑</th></tr>
-<tr><td>未過濾</td><td>384,169</td><td class="bad">230</td><td class="bad">61–65</td></tr>
-<tr><td>scale &lt; 1.0</td><td>379,073</td><td>126</td><td>—</td></tr>
-<tr><td>scale &lt; 0.5</td><td>373,442</td><td>89</td><td>—</td></tr>
-<tr><td><b>scale &lt; 0.2</b></td><td>345,265（−9%）</td><td class="good">45.8</td><td class="good">11.2×9.4×11.3</td></tr>
-</table>
-<p>包圍盒從 61 收到 11.2 —— 終於是教室的合理尺度。
-註：<code>--filter-floaters</code> 只移除 8% 且 fill ratio 反而上升（230→314），
-因為它清掉的是稀疏離群，剩下的密集區佔比就提高了；<b>fill ratio 不是單調的「越低越好」</b>。</p>
-
-<h2>4. 沒解掉的問題：取樣密度</h2>
-<p>rig 修好了幾何，但點雲始終稀疏。查相機軌跡發現每 4.96 秒才一幀，
-<b>相鄰幀位移中位數 1.258、最大 6.98，而場景包絡才 12.09</b> ——
-每幀移動達場景尺度的 10%，最差一步 58%。</p>
-<table>
-<tr><th></th><th>第一輪 70 幀</th><th>第二輪 139 幀</th><th>舊成功案例（家政教室）</th></tr>
-<tr><td>取樣間隔</td><td>4.96 秒</td><td>2.48 秒</td><td>—</td></tr>
-<tr><td>註冊影像</td><td>317</td><td>381</td><td>1194</td></tr>
-<tr><td>3D 點</td><td>5,006</td><td>7,356</td><td class="good">49,925</td></tr>
-<tr><td>mean track length</td><td>2.78</td><td>2.97</td><td>—</td></tr>
-<tr><td>訓練後高斯數</td><td>71,261</td><td>417,338</td><td>1,350,000</td></tr>
-</table>
-<p>第二輪加密一倍後各項指標都有改善，但<b>沒有質變</b>：track length 只從 2.78 到 2.97，離健康的 4 以上還有距離。</p>
-
-<h2>5. 下一步：加密角度軸，而不是時間軸</h2>
-<p class="lead">推測真正的瓶頸不在時間取樣，而在<b>cubemap 的角度取樣方式</b>。</p>
+<h3>官方縫合的匯出設定（Insta360 Studio 6.0.2）</h3>
 <ul>
-<li>六面中 f4/f5（正上、正下）拍到的是天花板與地板 —— 特徵少且高度重複；
-f5 更正好是持自拍桿的方向，去人程序已砍掉其中 58/63。</li>
-<li>真正扛匹配的只有 f0–f3 這個水平環，而它們兩兩相隔 90°、FOV 100°，<b>只有 5° 重疊</b>。</li>
-<li>對照家政教室的成功案例：官方縫合後取 6 個 yaw（間隔 60°、FOV 100°），<b>重疊 40°</b> —— 差了 8 倍。</li>
+<li>匯入 .insv → 雙擊縮圖進編輯器 → 右上「匯出」</li>
+<li><b>「輸出為」要從預設的「影片」改成「全景影片」</b>——預設輸出的是重構視角 1080p，不是全景圖</li>
+<li>改選後解析度自動為 7680×3840、位元率「原始」144 Mbps、H.265；5 分 42 秒輸出 6.19 GB，約 3 分鐘</li>
 </ul>
-<p>所以下一輪要改成：<b>水平環 8 個 yaw（間隔 45°、FOV 100° → 重疊 55°）＋ 上下各 1 面</b>，
-每幀 10 面。相鄰面重疊大增，匹配應該會有質變。</p>
 
-<h2>6. 素材本身沒問題（排除重拍）</h2>
-<table>
-<tr><th>疑慮</th><th>驗證</th><th>結論</th></tr>
-<tr><td>素材用完了？</td><td>影片 348.88 秒 × 30fps = <b>10,466 幀</b>，第一輪只用 70 幀 = 0.67%</td><td class="good">還有兩個數量級</td></tr>
-<tr><td>走太快、畫面模糊？</td><td>40 張 cube face 的 Laplacian 變異數中位 1365，偏模糊幀僅 10%</td><td class="good">清晰</td></tr>
-<tr><td>覆蓋不足？</td><td>軌跡總長 95.12、包絡 [5.28, 7.18, 12.09]</td><td class="good">有走遍教室</td></tr>
-<tr><td>相機歪斜？</td><td>已用 cubemap + rig 繞過</td><td class="good">不再是問題</td></tr>
-</table>
-<p><b>不需要重拍。</b>唯一算得上拍攝面的建議：下次走慢一點、或在關鍵區域停留繞一圈，
-這樣即使稀疏取樣也有足夠視差。</p>
+<h2>3. 第三輪流程</h2>
+<pre>.insv
+ │ Insta360 Studio 官方縫合（FlowState 扶正）→ 7680×3840 全景 MP4
+ │ extract_person_aware.py：80 幀 × 6 方位（0/60/120/180/-120/-60°）
+ │   FOV 100°×78° → 1200×900；相鄰方位重疊 40°
+ │   mediapipe 排除人物面積 &gt;5% 的視角：480 張 → 362 張（24% 含人）
+ │ COLMAP：GPU 特徵 10 秒、exhaustive 65,341 對（50 對/秒）、mapper
+ │ Brush 30000 步：growth-stop-iter 25000 / growth-select-fraction 0.3 / refine-every 120（29 分）
+ │ 清理：裁切到相機範圍 + scale&lt;0.2 + 夾針
+ ▼ 196 萬高斯</pre>
+<p>扶正後相機姿態高度一致：<b>329 台相機的上方向一致性中位數 0.68°</b>（第二輪 ffmpeg 版是 63.5°），
+可以直接用來定重力方向。對齊後量得教室約 <b>11.58 × 10.24 m</b>。</p>
 
-<h2>7. 四個 shell 陷阱（都是錯誤被吞掉）</h2>
-<pre>1. set -uo pipefail 少了 -e
-   → feature_extractor 選項打錯直接失敗，但 matcher/mapper 照跑，
-     兩階段之後才報 "No images with matches"，錯誤鏈跟根因差很遠
+<h2>4. 清理</h2>
+<div class="tw"><table>
+<tr><th>步驟</th><th>高斯數</th><th>fill ratio（平均重疊層數）</th></tr>
+<tr><td>訓練輸出</td><td>2,000,000</td><td class="bad">1042</td></tr>
+<tr><td>裁切到相機範圍 + scale &lt; 0.2</td><td>1,962,685（−1.9%）</td><td class="good">39.6</td></tr>
+<tr><td>夾針（壓長軸，不刪除）</td><td>1,962,685</td><td>38.6</td></tr>
+</table></div>
+<p>訓練輸出裡 <code>scale</code> 最大 105，教室才約 11 m——少數巨大高斯撐出了大部分的過度繪製，移除不到 2% 就讓 fill ratio 降為 1/26。</p>
 
-2. set -euo pipefail 有了 -e
-   → colmap ... | grep -v "^I2026" 把所有行濾光時 grep 回傳 1，
-     pipefail 讓整條 pipeline 算失敗，腳本在「匹配已成功」之後靜默退出
+<h2>5. 未解決：飄絲</h2>
+<p>三種方法依序試過，每種都有數據變化，但<b>目視畫面沒有改善</b>：</p>
+<div class="tw"><table>
+<tr><th>方法</th><th>假設</th><th>結果</th></tr>
+<tr><td>opacity &gt; 0.05 過濾</td><td>飄絲是低透明度高斯</td><td>移除 33%、fill ratio 降到 23.7，畫面沒變——飄絲的透明度並不低</td></tr>
+<tr><td><code>--filter-cluster</code></td><td>飄絲是孤立叢集</td><td>29 個區塊全在同一叢集，無可過濾——飄絲跟主體連在一起</td></tr>
+<tr><td>夾針（scale max/median &gt; 10 的長軸壓回）</td><td>飄絲是針狀高斯</td><td>夾制 375,814 顆（19.15%），長寬比 p99 從 105 壓到 10，fill ratio 39.6→38.6，畫面幾乎沒變</td></tr>
+</table></div>
+<p>附帶驗證了一個指標陷阱：針狀比例用 <b>最長軸 / 中間軸</b> 算是 19.15%；若誤用 <b>最長軸 / 最短軸</b> 會得 75.39%，高估 3.9 倍（把貼合平面的正常扁平高斯也算進去）。</p>
+<p><b>觀察</b>：同一個模型，從相機走過的位置第一人稱看幾乎乾淨，只剩天花板一帶有少量暗色絲；換到場景外上方俯視時，飄絲佈滿畫面。飄絲出現與否跟「離訓練相機多遠」有關。</p>
+<p class="lead"><b>目前推測（部分支持，未系統驗證）</b>：三個假設都被否證，飄絲可能來自<b>視角覆蓋不足</b>——某些區域從一開始就沒被足夠多的相機看到，
+訓練只能用半透明高斯去湊。若是如此，清理階段無法解決，要回頭補資料（加密取樣或加上俯仰視角）。</p>
 
-3. echo "rc=$?" 裡的 $? 抓到的是同一行 $(date) 的退出碼
-   → 命令替換先執行。要先 RC=$? 存起來再 echo
+<h2>6. 為什麼不需要重拍</h2>
+<div class="tw"><table>
+<tr><th>疑慮</th><th>檢查</th><th>結論</th></tr>
+<tr><td>素材不夠？</td><td>影片 10,466 幀，第三輪只用 80 幀（0.8%）</td><td class="good">還很多</td></tr>
+<tr><td>畫面模糊？</td><td>40 張影像銳利度中位數 1365，偏模糊僅 10%</td><td class="good">清晰</td></tr>
+<tr><td>沒走遍？</td><td>相機活動範圍涵蓋整間教室</td><td class="good">有</td></tr>
+</table></div>
 
-4. 四元數轉換在 180° 爆掉
-   → Ry(180) 的 trace = -1，w = sqrt(1+trace)/2 = 0，接著除以 4w 得到
-     [0.0, NaN, Infinity, NaN]，寫進 json 也不會報錯。
-     改用 Shepperd 方法，並加 round-trip 驗證（實測誤差 ≤ 3.8e-11）</pre>
-<p>第 1 和第 2 是對立的：<code>-e</code> 沒有時漏掉真失敗，有的時候又被假失敗誤殺。
-正解是保留 <code>-e</code>，但在會被濾光的 pipeline 尾端補 <code>|| true</code>，
-並在每個關鍵階段之後<b>直接查 db 的數量當驗證點</b>，不依賴退出碼。</p>
+<h2>7. 過程中的其他坑</h2>
+<ul>
+<li><b>COLMAP 4.1.1 的選項是兩層</b>：通用選項改名為 <code>--FeatureExtraction.*</code>，但 SIFT 專屬的 <code>max_num_features</code> 仍在 <code>--SiftExtraction.*</code>。打錯時只有第一步失敗，後面照跑，兩個階段後才報錯。</li>
+<li><b>shell 的 <code>set -e</code> 兩頭都會咬人</b>：沒有它時真錯誤被略過；有它時 <code>grep</code> 把輸出濾光（回傳 1）會讓腳本在「已經成功」後靜默退出。</li>
+<li><b>四元數轉換在 180° 會除以零</b>，輸出 NaN 寫進設定檔也不報錯。</li>
+<li><b>匹配對清單只取時間相近的幀</b>會切掉走回頭時的匹配（loop closure），重建碎成 14 片。</li>
+<li>讓 splat-transform 與 COLMAP 同時跑，COLMAP 匹配速度掉 8 倍（搶同一顆 GPU）。</li>
+<li>自動化操作 Insta360 Studio 時，背景模式點不到 macOS 檔案對話框裡的檔案，選檔要改用全螢幕控制。</li>
+</ul>
 
-<h2>8. COLMAP 4.1.1 的選項是兩層</h2>
-<p>既有筆記記成「4.1.1 把 SiftExtraction 改名為 FeatureExtraction」—— 只對了一半：</p>
-<table>
-<tr><th>選項</th><th>正確前綴</th></tr>
-<tr><td><code>type</code> / <code>num_threads</code> / <code>use_gpu</code> / <code>gpu_index</code> / <code>max_image_size</code></td><td><code>--FeatureExtraction.*</code></td></tr>
-<tr><td><code>max_num_features</code> / <code>peak_threshold</code> / <code>edge_threshold</code> / <code>upright</code></td><td><code>--SiftExtraction.*</code></td></tr>
-</table>
-<p>通用（跨演算法）選項改名了，<b>SIFT 專屬選項仍留在 SiftExtraction</b>。matcher 同理
-（<code>--FeatureMatching.use_gpu</code> 但 <code>--SiftMatching.max_ratio</code>）。</p>
-
-<h2>9. 匹配策略：exhaustive 的替代</h2>
-<p>139 幀 × 6 面 = 834 張，exhaustive 是 347,361 對（本機約 10 對/秒 ⇒ 9 小時）。
-改用 <code>colmap matches_importer --match_type pairs</code> 搭配自訂對清單。</p>
-<p><b>第一次設計失敗了</b>：只取時間窗 ±3 個原始幀間距，把「走回頭」的遠時間匹配整個切掉 ——
-而第一輪 exhaustive 的統計明明顯示幀距 8 仍有 7.9% 好對，那正是 loop closure。
-結果重建碎成十幾片、BA 的 Hessian 奇異。</p>
-<table>
-<tr><th></th><th>影像</th><th>好對</th><th>每張影像好對數</th><th>結果</th></tr>
-<tr><td>第一輪 exhaustive</td><td>357</td><td>5,057</td><td>28.3</td><td>單一模型 317 張</td></tr>
-<tr><td>第二輪 窗±6</td><td>695</td><td>3,767</td><td class="bad">10.8</td><td class="bad">碎成 14 片</td></tr>
-<tr><td>第二輪 + loop closure</td><td>695</td><td class="good">7,347</td><td>21.1</td><td>5 片，最大 381 張</td></tr>
-</table>
-<p>教訓：<b>時間窗式匹配一定要補 loop closure</b>（關鍵幀之間全配對），
-否則重建會變成一條容易斷的鏈。</p>
-
-<h2>10. 產出位置</h2>
-<table>
-<tr><th>內容</th><th>路徑</th></tr>
-<tr><td>卡片歸檔（冷封存）</td><td><code>/Volumes/3D/DCIM-scans/x5-card-2026-09-08/</code></td></tr>
-<tr><td>equirect / cube / 去人偵測</td><td><code>/Volumes/3D/x5-3dgs/livingtech3-20260908/</code></td></tr>
-<tr><td>COLMAP（第一輪 / 第二輪）</td><td><code>~/x5-data/scenes/livingtech3/{colmap,r2}/</code></td></tr>
-<tr><td>訓練產出</td><td><code>~/x5-data/scenes/livingtech3/out_r2/final/</code></td></tr>
-<tr><td>可重複腳本</td><td><code>x5-roomtour/scripts/insv_to_cubemap_colmap.sh</code>、<code>make_pair_list.py</code>、<code>make_pair_list2.py</code>、<code>postprocess_splat.sh</code></td></tr>
-</table>
+<h2>8. 第一、二輪做過但已不需要的處理</h2>
+<p>為了在沒有官方縫合的情況下硬做，前兩輪用了 cubemap 六面採樣，並從重建反推出「同一幀六個面被當成六台相機、編造出 0.4–0.7 的假平移」，
+用 COLMAP rig 約束把它們綁回同一光心（註冊 229 → 317）。這些分析本身正確，
+但只是在錯誤的縫合上修補——有了官方縫合後就回到原本驗證過的 6 方位採樣，不再需要。</p>
 
 </div></body></html>
