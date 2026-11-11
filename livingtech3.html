@@ -18,7 +18,7 @@
 </style></head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud"><span class="tag">官方縫合 · 6 方位/幀</span><br><b>生科教室三</b> 2026-09-08 拍攝<br><span style="color:#8b97a7">329 張 · 196 萬高斯 · 飄絲待處理</span><br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
+<div id="hud"><span class="tag">第三輪 · 6 方位/幀</span><br><b>生科教室三</b> 2026-09-08 拍攝<br><span style="color:#8b97a7">329 張 · 196 萬高斯 · 飄絲待處理</span><br><a href="livingtech3-compare.html" style="color:#ff7a18">與第四輪並排比較 →</a><br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
 <a id="back" href="livingtech3-log.html">← 建置紀錄</a>
 <div id="load"><div style="font-size:14px;color:#e6edf3">生科教室三・官方縫合（第三輪）</div><div id="bar"><div id="fill"></div></div><div id="pct">下載場景…</div></div>
 <script type="module">
@@ -41,7 +41,9 @@ cam.addComponent('camera',{clearColor:new pc.Color(0.925,0.925,0.933),fov:70,nea
 app.root.addChild(cam);
 
 let pos=new pc.Vec3(SPAWN[0],SPAWN[1],SPAWN[2]);
-let yaw=parseFloat(new URLSearchParams(location.search).get('yaw')||'150'), pitch=6, auto=true, idle=0;
+const QS=new URLSearchParams(location.search), EMBED=QS.has('embed');   // embed=1：給比較頁內嵌用，不顯示標籤、不自動轉
+if(EMBED){for(const id of ['hud','back'])document.getElementById(id).style.display='none';}
+let yaw=parseFloat(QS.get('yaw')||'150'), pitch=6, auto=!EMBED, idle=0;
 function applyCam(){
   cam.setPosition(pos.x,pos.y,pos.z);
   cam.setEulerAngles(pitch,yaw,0);
@@ -52,15 +54,20 @@ app.on('update',dt=>{
   applyCam();
 });
 window.__look=(y,p)=>{yaw=y;pitch=(p==null?pitch:p);auto=false;idle=0;applyCam();};
+// 比較頁（livingtech3-compare.html）用：讀寫相機位姿、記錄最後一次操作的時間，讓兩邊知道誰帶誰
+window.__lastInput=0; const touch=()=>{window.__lastInput=Date.now();};
+window.__getPose=()=>({x:pos.x,y:pos.y,z:pos.z,yaw,pitch});
+window.__setPose=p=>{pos.set(p.x,p.y,p.z);yaw=p.yaw;pitch=p.pitch;auto=false;applyCam();};
+window.__dolly=step=>{const f=cam.forward;pos.x+=f.x*step;pos.y+=f.y*step;pos.z+=f.z*step;idle=0;};
 
 // drag look
 let drag=false,lx=0,ly=0;
-canvas.addEventListener('pointerdown',e=>{drag=true;auto=false;idle=0;lx=e.clientX;ly=e.clientY;});
-addEventListener('pointerup',()=>{drag=false;idle=0;auto=true;});
-addEventListener('pointermove',e=>{ if(!drag)return; idle=0; yaw-=(e.clientX-lx)*0.18; pitch=Math.max(-88,Math.min(88,pitch-(e.clientY-ly)*0.18)); lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener('pointerdown',e=>{drag=true;auto=false;idle=0;lx=e.clientX;ly=e.clientY;touch();});
+addEventListener('pointerup',()=>{drag=false;idle=0;auto=!EMBED;});
+addEventListener('pointermove',e=>{ if(!drag)return; idle=0; touch(); yaw-=(e.clientX-lx)*0.18; pitch=Math.max(-88,Math.min(88,pitch-(e.clientY-ly)*0.18)); lx=e.clientX;ly=e.clientY;});
 // wheel = dolly forward/back along look dir
-canvas.addEventListener('wheel',e=>{e.preventDefault();idle=0;
-  const f=cam.forward; const step=-Math.sign(e.deltaY)*0.22;  // 約 0.25 m/格(1單位≈1.15m)
+canvas.addEventListener('wheel',e=>{e.preventDefault();idle=0;touch();
+  const f=cam.forward; const step=-Math.sign(e.deltaY)*0.22;  // COLMAP 無單位座標,不是公尺
   pos.x+=f.x*step; pos.y+=f.y*step; pos.z+=f.z*step;
 },{passive:false});
 
@@ -77,7 +84,7 @@ async function load(){
   asset.on('load',()=>{
     const e=new pc.Entity('splat'); e.addComponent('gsplat',{asset});
     e.setLocalRotation(new pc.Quat(ALIGN[0],ALIGN[1],ALIGN[2],ALIGN[3]));
-    app.root.addChild(e); window.__splat=e; applyCam();
+    app.root.addChild(e); window.__splat=e; window.__ready=true; applyCam();
     const l=document.getElementById('load'); l.style.opacity=0; setTimeout(()=>l.style.display='none',500);
   });
   asset.on('error',err=>document.getElementById('pct').textContent='載入失敗：'+err);

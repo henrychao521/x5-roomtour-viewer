@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生科教室三・第三輪與第四輪並排比較</title>
+<style>
+ :root{--bg:#0b0e14;--fg:#e6edf3;--mut:#8b97a7;--acc:#ff7a18;--line:#222b38;--card:#121722}
+ *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.75 -apple-system,"PingFang TC",system-ui}
+ a{color:var(--acc)}
+ header{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;padding:12px 16px 8px}
+ header h1{font-size:18px;margin:0} header .links{font-size:13px;color:var(--mut)} header .links a{margin-right:12px}
+ .views{display:flex;gap:6px;padding:0 6px;height:62vh;min-height:320px}
+ .pane{position:relative;flex:1 1 0;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0b0e14}
+ .pane iframe{width:100%;height:100%;border:0;display:block}
+ .pane .lab{position:absolute;left:10px;top:10px;z-index:2;pointer-events:none;background:rgba(11,14,20,.72);border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:12.5px;line-height:1.5}
+ .pane .lab b{color:var(--acc)} .pane .lab span{color:var(--mut)}
+ .pane.lead{border-color:var(--acc)}
+ .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px}
+ .bar button{background:#161c28;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+ .bar button:hover{border-color:var(--acc)} .bar button.on{border-color:var(--acc);color:var(--acc)}
+ .bar .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+ .bar label{font-size:13.5px;color:var(--mut);display:flex;align-items:center;gap:6px;cursor:pointer}
+ .hint{color:var(--mut);font-size:12.5px;padding:0 14px 6px}
+ .wrap{max-width:980px;margin:0 auto;padding:10px 20px 80px}
+ h2{font-size:19px;margin:34px 0 10px;color:var(--acc)}
+ .tw{overflow-x:auto} table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+ th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top} th{background:#161c28;color:var(--mut);font-weight:600}
+ .bad{color:#ff6b6b} .good{color:#5ddb8f} .lead-note{border-left:3px solid var(--acc);padding-left:14px;color:#cbd5e1}
+ code{background:#161c28;padding:1px 6px;border-radius:5px;font-size:12.5px;color:#ffd7b0}
+ ul{padding-left:20px}
+ @media(max-width:760px){.views{flex-direction:column;height:84vh}}
+</style></head><body>
+
+<header>
+  <h1>生科教室三 · 第三輪與第四輪並排比較</h1>
+  <div class="links"><a href="livingtech3-log.html">← 建置紀錄</a><a href="livingtech3.html">單獨開第三輪</a><a href="livingtech3-r4.html">單獨開第四輪</a></div>
+</header>
+
+<div class="views">
+  <div class="pane" id="p3"><div class="lab"><b>第三輪</b>　2026-09-09<br><span>80 幀 × 6 方位 · 329 張</span></div>
+    <iframe id="f3" src="livingtech3.html?embed=1" title="第三輪"></iframe></div>
+  <div class="pane" id="p4"><div class="lab"><b>第四輪</b>　2026-11-12<br><span>300 幀 × 12 方位 · 3,600 張</span></div>
+    <iframe id="f4" src="livingtech3-r4.html?embed=1" title="第四輪"></iframe></div>
+</div>
+
+<div class="bar">
+  <span id="presets"></span>
+  <span class="sep"></span>
+  <button id="back">後退</button><button id="fwd">前進</button>
+  <span class="sep"></span>
+  <label><input type="checkbox" id="sync" checked> 兩邊同步視角</label>
+</div>
+<div class="hint">在任一邊拖曳環視、滾輪前進後退，另一邊會跟著走到同一個位置、看同一個方向（橘框是目前帶頭的那一邊）。兩個模型共 64 MB，建議用 Wi-Fi 與桌機或筆電開啟。</div>
+
+<div class="wrap">
+
+<p class="lead-note">兩邊是<b>同一支影片</b>（2026-09-08 拍攝、Insta360 Studio 官方縫合），沒有重拍，高斯數與檔案大小也幾乎相同。
+差別只在「怎麼從影片取樣、怎麼算相機位置」。所以畫面上的差異，就是處理方式的差異。</p>
+
+<h2>1. 兩輪的處理差在哪</h2>
+<div class="tw"><table>
+<tr><th></th><th>第三輪</th><th>第四輪</th></tr>
+<tr><td>抽幀</td><td>80 幀</td><td>300 幀（另外留 20 幀只評分、不訓練）</td></tr>
+<tr><td>每幀切幾個方位</td><td>6 個，全部水平（俯仰 0°）</td><td>12 個：6 個水平 ＋ 6 個朝上 45°</td></tr>
+<tr><td>有人入鏡的影像</td><td>人物面積超過 5% 就整張丟掉（480 → 362 張）</td><td>只遮掉人物的像素，其餘照用</td></tr>
+<tr><td>相機內參</td><td class="bad">讓 COLMAP 自己估（fy 估成 615.54，比正確值大 10.8%）</td><td class="good">由切圖參數直接算出並鎖死（fy 555.70）</td></tr>
+<tr><td>影像配對</td><td>全部兩兩配對（65,341 對）</td><td>先用全景圖算出相機位置，再只配對位置相近的幀</td></tr>
+<tr><td>註冊影像</td><td>329 / 362</td><td>3,840 / 3,840</td></tr>
+<tr><td>3D 點、平均 track length</td><td>40,845 點、5.07</td><td>476,785 點、6.16</td></tr>
+<tr><td>訓練影像</td><td>329 張</td><td>3,600 張</td></tr>
+<tr><td>高斯數、檔案</td><td>196 萬、32.0 MB</td><td>198 萬、32.2 MB</td></tr>
+<tr><td>垂直方向比例</td><td class="bad">被壓扁約 9%</td><td class="good">正確（三軸比例 1 : 0.997 : 0.996）</td></tr>
+</table></div>
+
+<h2>2. 用數字量：留出視角</h2>
+<p>從影片另外取 20 個<b>沒有進訓練</b>的拍攝位置，每個位置 12 個方位，共 240 張。讓模型算出這些視角，和真實影像比（人物區域不計分）。分數是 PSNR，越高越接近真實影像。</p>
+<div class="tw"><table>
+<tr><th>做法</th><th>訓練影像</th><th>PSNR</th><th>和前一列比</th></tr>
+<tr><td>第三輪的取樣方式（80 幀、6 方位、整張丟掉有人的影像）</td><td>331</td><td>18.86 dB</td><td>—</td></tr>
+<tr><td>人物改用像素遮罩</td><td>480</td><td>19.24 dB</td><td>+0.39 dB</td></tr>
+<tr><td>再加 6 個朝上 45° 的方位</td><td>960</td><td>19.70 dB</td><td>+0.46 dB（朝上的視角 +1.34）</td></tr>
+<tr><td><b>幀數加到 300（第四輪）</b></td><td>3,600</td><td><b>21.14 dB</b></td><td>+1.44 dB；和第一列比 +2.29 dB，95% 的視角變好</td></tr>
+</table></div>
+<p class="lead-note"><b>第一列不是左邊那個模型本身的分數。</b>第三輪的模型有垂直壓扁的問題，座標系和第四輪不同，沒辦法用同一組留出視角直接評分。
+18.86 dB 是「用第三輪的取樣方式、但內參改成正確值」重新訓練的對照組，所以內參修正的效果不在這張表裡。</p>
+<p>幀數那一項要保守看：訓練幀變密之後，留出位置離最近的訓練幀也變近，所以 +1.44 dB 有一部分來自「測試點離訓練點更近」。離開拍攝路徑的視角能進步多少，沒有量。</p>
+
+<h2>3. 試過但沒有用的</h2>
+<div class="tw"><table>
+<tr><th>改法</th><th>結果</th></tr>
+<tr><td>Brush 的 growth 參數（積極 vs 預設）</td><td>−0.01 dB</td></tr>
+<tr><td>訓練步數 30,000 → 60,000</td><td>+0.06 dB</td></tr>
+<tr><td>高斯上限 200 萬 → 400 萬</td><td>+0.09 dB，檔案與訓練時間接近加倍</td></tr>
+<tr><td>訓練解析度 1200×900 → 1600×1200（從 7680 寬原片重切）</td><td>−0.02 dB</td></tr>
+<tr><td>網頁版保留球諧係數</td><td>畫面看不出差別，檔案 32 MB → 50 或 121 MB</td></tr>
+</table></div>
+
+<h2>4. 看的時候可以注意什麼</h2>
+<ul>
+<li><b>天花板</b>：第三輪沒有朝上的視角，天花板是用水平視角的邊緣湊出來的；第四輪的黑色格柵與燈板清楚很多。</li>
+<li><b>貼近物體</b>：兩輪都偏糊，第四輪沒有比較銳利。留出分數最差的位置，都是鏡頭離物體只有幾十公分的地方（近距離視差大、兩顆鏡頭的縫合視差、移動模糊）。這是拍攝端的限制，下次拍攝鏡頭要離物體一公尺以上。</li>
+<li><b>離開拍攝路徑</b>：兩輪都只在相機走過的地方可靠，滾輪走太遠會看到飄絲。</li>
+</ul>
+
+<h2>5. 兩邊的視角是怎麼對上的</h2>
+<p>兩輪各自重建，座標系不同。這一頁用兩輪共同的 79 個拍攝時間點，把相機位置對起來（水平方向旋轉 74.8°、縮放 0.952，對齊後位置誤差約為相機走動範圍的 1%）。</p>
+<p>對齊時<b>垂直方向要另外用 0.865 倍</b>才對得上，和水平的 0.952 相差 9%——這就是第三輪垂直壓扁的量，和當時用另一種方法量到的 0.907 一致。</p>
+<p style="color:var(--mut);font-size:13px">座標是 COLMAP 的無單位座標，不是公尺。兩邊的位置對應有小誤差，貼近物體時兩邊畫面會有些微錯位。</p>
+
+</div>
+
+<script>
+// ---- 第三輪 ↔ 第四輪 檢視器座標互轉（由 79 個共同時間點的相機位置擬合）----
+// 水平：相似變換（旋轉 TH、縮放 S、平移 TX/TZ）；垂直：y4 = AY*y3 + BY。檢視器 yaw 的前向是 (-sin, 0, -cos)，所以 yaw4 = yaw3 - TH。
+const THD=74.844, TH=THD*Math.PI/180, S=0.9521, C=Math.cos(TH), SN=Math.sin(TH), TX=-0.0845, TZ=0.1186, AY=0.8652, BY=-0.0374;
+const r3to4=p=>({x:S*(C*p.x-SN*p.z)+TX, y:AY*p.y+BY, z:S*(SN*p.x+C*p.z)+TZ, yaw:p.yaw-THD, pitch:p.pitch});
+const r4to3=p=>{const u=(p.x-TX)/S, v=(p.z-TZ)/S; return {x:C*u+SN*v, y:(p.y-BY)/AY, z:-SN*u+C*v, yaw:p.yaw+THD, pitch:p.pitch};};
+
+// 預設視角（第四輪座標）
+const PRESETS=[
+  {name:'教室中段', x:0.024,  y:0.018, z:0.052, yaw:150, pitch:6},
+  {name:'看天花板', x:0.024,  y:0.018, z:0.052, yaw:150, pitch:55},
+  {name:'窗邊',     x:-3.769, y:0.586, z:2.697, yaw:55,  pitch:4},
+  {name:'教室全景', x:1.167,  y:0.299, z:3.353, yaw:20,  pitch:0},
+  {name:'貼近窗戶', x:1.167,  y:0.299, z:3.353, yaw:290, pitch:0},
+];
+
+const W3=()=>document.getElementById('f3').contentWindow, W4=()=>document.getElementById('f4').contentWindow;
+const ok=w=>w && typeof w.__getPose==='function';
+let lead='r4', sync=true;
+function setLead(l){lead=l;document.getElementById('p3').classList.toggle('lead',l==='r3'&&sync);document.getElementById('p4').classList.toggle('lead',l==='r4'&&sync);}
+function tick(){
+  const a=W3(), b=W4();
+  if(ok(a)&&ok(b)&&sync){
+    const want=(a.__lastInput>b.__lastInput)?'r3':'r4';
+    if(want!==lead) setLead(want);
+    if(lead==='r4') a.__setPose(r4to3(b.__getPose())); else b.__setPose(r3to4(a.__getPose()));
+  }
+  requestAnimationFrame(tick);
+}
+function goto(p){
+  const b=W4(); if(!ok(b)) return;
+  b.__setPose(p); b.__lastInput=Date.now(); setLead('r4');
+  if(!sync){const a=W3(); if(ok(a)) a.__setPose(r4to3(p));}   // 沒同步時，按預設視角仍把兩邊都帶過去
+}
+const box=document.getElementById('presets');
+PRESETS.forEach(p=>{const bt=document.createElement('button');bt.textContent=p.name;bt.onclick=()=>goto(p);box.appendChild(bt);box.appendChild(document.createTextNode(' '));});
+function dolly(step){
+  const ws=sync?[lead==='r4'?W4():W3()]:[W3(),W4()];
+  ws.forEach(w=>{if(ok(w)){w.__dolly(step);w.__lastInput=Date.now();}});
+}
+document.getElementById('fwd').onclick=()=>dolly(0.22);
+document.getElementById('back').onclick=()=>dolly(-0.22);
+document.getElementById('sync').onchange=e=>{sync=e.target.checked;setLead(lead);};
+// 兩邊都載入後，從第一個預設視角開始
+const boot=setInterval(()=>{if(ok(W3())&&ok(W4())){clearInterval(boot);goto(PRESETS[0]);}},200);
+setLead('r4'); requestAnimationFrame(tick);
+</script>
+</body></html>

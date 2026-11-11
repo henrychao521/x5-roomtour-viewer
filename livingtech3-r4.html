@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生科教室三・Insta360 官方縫合重建（第四輪）</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;font-family:-apple-system,"PingFang TC",system-ui;color:#e6edf3}
+  #c{width:100vw;height:100vh;display:block;touch-action:none;cursor:grab}
+  #c:active{cursor:grabbing}
+  #hud{position:fixed;left:14px;top:12px;z-index:5;background:rgba(11,14,20,.62);border:1px solid #222b38;border-radius:10px;padding:8px 12px;font-size:12.5px;backdrop-filter:blur(6px)}
+  #hud b{color:#ff7a18}
+  #hud .tag{display:inline-block;background:#1b2230;border:1px solid #ff7a18;color:#ff7a18;border-radius:14px;padding:1px 9px;font:700 10px system-ui;letter-spacing:1px;margin-bottom:4px}
+  #back{position:fixed;right:14px;top:12px;z-index:5;color:#8b97a7;font-size:12.5px;text-decoration:none;background:rgba(11,14,20,.62);border:1px solid #222b38;border-radius:10px;padding:8px 12px}
+  #load{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0e14;transition:opacity .5s}
+  #bar{width:240px;height:5px;background:#222b38;border-radius:3px;overflow:hidden;margin-top:12px}
+  #fill{height:100%;width:0;background:#ff7a18}
+  #pct{margin-top:8px;color:#8b97a7;font-size:12px}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span class="tag">第四輪 · 12 方位/幀</span><br><b>生科教室三</b> 2026-09-08 拍攝<br><span style="color:#8b97a7">300 幀 · 3,600 張 · 198 萬高斯</span><br><a href="livingtech3-compare.html" style="color:#ff7a18">與第三輪並排比較 →</a><br><span style="color:#8b97a7">拖曳環視 · 滾輪前進/後退</span></div>
+<a id="back" href="livingtech3-log.html">← 建置紀錄</a>
+<div id="load"><div style="font-size:14px;color:#e6edf3">生科教室三・官方縫合（第四輪）</div><div id="bar"><div id="fill"></div></div><div id="pct">下載場景…</div></div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.10.1/build/playcanvas.mjs';
+
+// === 生科教室三第四輪:Insta360 官方縫合 → 300 幀 x 12 方位(俯仰 0/45),3840/3840 註冊、476,785 點、track 6.16、重投影 0.93px;留出視角 21.14 dB ===
+// 內參由切圖參數算出並鎖死(fx 503.46 / fy 555.70),人物用像素遮罩;重力方向取相機上方向平均。
+// 對齊後相機走動範圍 8.78 x 10.61、高度變化 1.90(COLMAP 無單位座標,不是公尺,也不是教室尺寸)。
+const ALIGN=[0.90751,-0.00000,0.41995,0.00822];
+const SPAWN=[0.024,0.018,0.052];      // 300 幀相機質心
+
+const canvas=document.getElementById('c');
+const app=new pc.Application(canvas,{mouse:new pc.Mouse(canvas),touch:new pc.TouchDevice(canvas),
+  graphicsDeviceOptions:{antialias:false,preserveDrawingBuffer:true}});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO);
+addEventListener('resize',()=>app.resizeCanvas()); app.start(); window.__app=app;
+
+const cam=new pc.Entity('cam');
+cam.addComponent('camera',{clearColor:new pc.Color(0.925,0.925,0.933),fov:70,nearClip:0.02,farClip:80});
+app.root.addChild(cam);
+
+let pos=new pc.Vec3(SPAWN[0],SPAWN[1],SPAWN[2]);
+const QS=new URLSearchParams(location.search), EMBED=QS.has('embed');   // embed=1：給比較頁內嵌用，不顯示標籤、不自動轉
+if(EMBED){for(const id of ['hud','back'])document.getElementById(id).style.display='none';}
+let yaw=parseFloat(QS.get('yaw')||'150'), pitch=6, auto=!EMBED, idle=0;
+function applyCam(){
+  cam.setPosition(pos.x,pos.y,pos.z);
+  cam.setEulerAngles(pitch,yaw,0);
+}
+app.on('update',dt=>{
+  idle+=dt;
+  if(auto && idle>3){ yaw=(yaw+dt*4)%360; }   // gentle auto-pan when idle
+  applyCam();
+});
+window.__look=(y,p)=>{yaw=y;pitch=(p==null?pitch:p);auto=false;idle=0;applyCam();};
+// 比較頁（livingtech3-compare.html）用：讀寫相機位姿、記錄最後一次操作的時間，讓兩邊知道誰帶誰
+window.__lastInput=0; const touch=()=>{window.__lastInput=Date.now();};
+window.__getPose=()=>({x:pos.x,y:pos.y,z:pos.z,yaw,pitch});
+window.__setPose=p=>{pos.set(p.x,p.y,p.z);yaw=p.yaw;pitch=p.pitch;auto=false;applyCam();};
+window.__dolly=step=>{const f=cam.forward;pos.x+=f.x*step;pos.y+=f.y*step;pos.z+=f.z*step;idle=0;};
+
+// drag look
+let drag=false,lx=0,ly=0;
+canvas.addEventListener('pointerdown',e=>{drag=true;auto=false;idle=0;lx=e.clientX;ly=e.clientY;touch();});
+addEventListener('pointerup',()=>{drag=false;idle=0;auto=!EMBED;});
+addEventListener('pointermove',e=>{ if(!drag)return; idle=0; touch(); yaw-=(e.clientX-lx)*0.18; pitch=Math.max(-88,Math.min(88,pitch-(e.clientY-ly)*0.18)); lx=e.clientX;ly=e.clientY;});
+// wheel = dolly forward/back along look dir
+canvas.addEventListener('wheel',e=>{e.preventDefault();idle=0;touch();
+  const f=cam.forward; const step=-Math.sign(e.deltaY)*0.22;  // COLMAP 無單位座標,不是公尺
+  pos.x+=f.x*step; pos.y+=f.y*step; pos.z+=f.z*step;
+},{passive:false});
+
+async function load(){
+  const res=await fetch('assets/livingtech3_r4.compressed.ply');
+  const total=+res.headers.get('Content-Length')||33500000;
+  const rd=res.body.getReader(); const ch=[]; let got=0;
+  for(;;){const{done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length;
+    const p=Math.min(100,Math.round(got/total*100)); document.getElementById('fill').style.width=p+'%';
+    document.getElementById('pct').textContent=`下載場景 ${p}%（${(got/1048576).toFixed(1)} MB）`;}
+  document.getElementById('pct').textContent='解碼中…';
+  const url=URL.createObjectURL(new Blob(ch));
+  const asset=new pc.Asset('he1920','gsplat',{url,filename:'s.compressed.ply'});
+  asset.on('load',()=>{
+    const e=new pc.Entity('splat'); e.addComponent('gsplat',{asset});
+    e.setLocalRotation(new pc.Quat(ALIGN[0],ALIGN[1],ALIGN[2],ALIGN[3]));
+    app.root.addChild(e); window.__splat=e; window.__ready=true; applyCam();
+    const l=document.getElementById('load'); l.style.opacity=0; setTimeout(()=>l.style.display='none',500);
+  });
+  asset.on('error',err=>document.getElementById('pct').textContent='載入失敗：'+err);
+  app.assets.add(asset); app.assets.load(asset);
+}
+load();
+</script></body></html>
